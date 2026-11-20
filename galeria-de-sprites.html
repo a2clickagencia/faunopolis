@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galeria de Sprites</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@400;700;800&display=swap">
+<style>
+:root{--verde:#1F6B4A;--broto:#7BC86C;--ouro:#F2B33D;--coral:#E8574B;--azul:#2E8FB8;--creme:#FFF4DE;--grafite:#1E2A2F}
+body{margin:0;background:var(--grafite);color:var(--creme);font-family:Nunito,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:20px 28px;background:var(--verde)}
+header img{height:56px}
+h1{font-family:Fredoka,"Trebuchet MS",sans-serif;margin:0;font-size:26px}
+main{padding:12px 28px 40px;max-width:1300px;margin:auto}
+h2{font-family:Fredoka,"Trebuchet MS",sans-serif;color:var(--ouro);border-bottom:2px solid rgba(255,244,222,.15);padding-bottom:6px;margin-top:34px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{background:#26393f;border-radius:14px;padding:10px;text-align:center}
+.card canvas{background:#6fae4f;border-radius:10px;width:128px;height:128px}
+.card.dark canvas{background:#3a4a50}
+.card b{display:block;margin-top:6px}
+.card small{color:#a9bab3;font-size:11px;display:block;line-height:1.35}
+p.note{color:#a9bab3}
+</style>
+</head>
+<body>
+<header><img src="assets/brand/logo-negativo.svg" alt="Faunópolis"><div><h1>Galeria de sprites</h1><small>Todos os gráficos do jogo são gerados por código (Canvas 2D). Esta página usa o mesmo motor de sprites do jogo.</small></div></header>
+<main>
+<p class="note">Animais aparecem em vista superior, olhando para a direita (o jogo rotaciona cada sprite na direção do movimento). Cada espécie tem 2 quadros de caminhada; o leão tem variação por sexo (juba). Filhotes são desenhados a 58% da escala.</p>
+<h2>Animais (31 espécies)</h2><div class="grid" id="g-animais"></div>
+<h2>Terrenos</h2><div class="grid" id="g-terr"></div>
+<h2>Vegetação e decoração</h2><div class="grid" id="g-deco"></div>
+<h2>Instalações</h2><div class="grid" id="g-build"></div>
+</main>
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/sprites.js"></script>
+<script>
+const S = FP.Sprites;
+function card(parent, title, sub, draw, dark){
+  const d = document.createElement('div'); d.className = 'card' + (dark ? ' dark' : '');
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  d.appendChild(c);
+  d.insertAdjacentHTML('beforeend', `<b>${title}</b><small>${sub}</small>`);
+  parent.appendChild(d);
+  draw(c.getContext('2d'));
+}
+const ga = document.getElementById('g-animais');
+Object.keys(FP.SPECIES).forEach(id => {
+  const sp = FP.SPECIES[id];
+  card(ga, sp.nome, `${FP.BIOMES[sp.bioma].nome}<br>tipo: ${sp.vis.tipo} · L=${sp.vis.L}px`, g => {
+    [['M',0,-1],['F',1,1]].forEach(([sex, f, side]) => {
+      const s = S.animal(id, sex, f);
+      const k = Math.min(4, 62 / s.half * 1.6);
+      g.save(); g.translate(128, 128 + side * 62); g.scale(k * 1.0, k * 1.0);
+      g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(2, 3, sp.vis.L * .42, sp.vis.Wd * .55, 0, 0, 7); g.fill();
+      g.drawImage(s.c, -s.half, -s.half, s.half * 2, s.half * 2); g.restore();
+    });
+  }, ['polar','fantastico'].includes(sp.bioma));
+});
+const gt = document.getElementById('g-terr');
+FP.TERRAINS.forEach(t => card(gt, t.nome, `R$ ${t.custo}/tile · cor ${t.cor}`, g => { for (let v = 0; v < 4; v++) g.drawImage(S.terrain(t.id, v), (v % 2) * 128, Math.floor(v / 2) * 128, 128, 128); }));
+const gd = document.getElementById('g-deco');
+Object.keys(FP.DECOS).forEach(k => { const d = FP.DECOS[k]; card(gd, d.nome, `R$ ${d.custo} · beleza +${d.beleza}${d.copa ? ' · copa' : ''}${d.bloqueia && !d.copa ? ' · bloqueia' : ''}`, g => { g.fillStyle = d.naAgua ? '#3a8fc6' : '#6fae4f'; g.fillRect(0, 0, 256, 256); const s = S.deco(k, 0); g.drawImage(s.c, 32, 32, 192, 192); }); });
+const gb = document.getElementById('g-build');
+Object.keys(FP.BUILDINGS).forEach(k => { const b = FP.BUILDINGS[k]; card(gb, b.nome, `${b.w}×${b.h} tiles · R$ ${b.custo} · manut. R$ ${b.manut}/dia`, g => { const c = S.building(k); const m = Math.max(c.width, c.height); const w = c.width / m * 220, h = c.height / m * 220; g.drawImage(c, (256 - w) / 2, (256 - h) / 2, w, h); }); });
+</script>
+</body>
+</html>

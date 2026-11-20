@@ -1,0 +1,26 @@
+# Publica o site no Cloudflare (Workers + arquivos estáticos) a cada push na branch main.
+# Requer os segredos do repositório: CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID
+# (Settings → Secrets and variables → Actions). Sem eles, este passo é ignorado.
+name: Site (Cloudflare)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version: 22
+      - name: Montar e publicar
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          node scripts/build-web.mjs
+          npx wrangler@4 deploy

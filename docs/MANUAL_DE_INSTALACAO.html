@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de Instalação — Faunópolis</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="stylesheet" href="doc.css">
+</head>
+<body>
+<header class="cover">
+  <img src="../assets/brand/logo-negativo.svg" alt="Faunópolis">
+  <h1>Manual de Instalação</h1>
+  <p>Como instalar, executar, atualizar, fazer backup e publicar Faunópolis no Windows, macOS e Linux.</p>
+  <div class="meta">Versão do jogo 1.0.0 · 18 de novembro de 2026</div>
+</header>
+<div class="layout">
+<nav class="toc"><b>Sumário</b>
+<ol>
+<li><a href="#req">Requisitos</a></li>
+<li><a href="#rapida">Instalação rápida (Windows)</a></li>
+<li><a href="#outros">macOS e Linux</a></li>
+<li><a href="#servidor">Executar com servidor local</a></li>
+<li><a href="#estrutura">Estrutura da pasta</a></li>
+<li><a href="#saves">Salvamentos e backup</a></li>
+<li><a href="#atualizar">Atualizar e desinstalar</a></li>
+<li><a href="#publicar">Publicar na internet</a></li>
+<li><a href="#problemas">Solução de problemas</a></li>
+</ol></nav>
+<main>
+<h2 id="req">1. Requisitos</h2>
+<table>
+<tr><th>Item</th><th>Mínimo</th><th>Recomendado</th></tr>
+<tr><td>Sistema</td><td>Windows 10, macOS 11, Linux (qualquer distribuição com navegador atual)</td><td>Windows 11 / macOS 13+</td></tr>
+<tr><td>Navegador</td><td>Chrome 99+, Edge 99+, Firefox 112+, Safari 16+ (precisa de <code>roundRect</code> do Canvas 2D)</td><td>Chrome ou Edge atualizados</td></tr>
+<tr><td>Processador</td><td>Dual-core 2 GHz</td><td>Quad-core</td></tr>
+<tr><td>Memória</td><td>4 GB</td><td>8 GB</td></tr>
+<tr><td>Vídeo</td><td>Qualquer GPU com aceleração de canvas</td><td>—</td></tr>
+<tr><td>Tela</td><td>1280×720</td><td>1920×1080</td></tr>
+<tr><td>Espaço em disco</td><td>~1 MB</td><td>—</td></tr>
+<tr><td>Internet</td><td>Não é necessária</td><td>Opcional: carrega as fontes da marca (Fredoka e Nunito); sem internet, o jogo usa fontes do sistema</td></tr>
+</table>
+<div class="box tip"><b>Não há instalador.</b> Faunópolis é um jogo HTML5: não instala programas, não altera o registro do Windows e não precisa de permissões de administrador. “Instalar” é apenas guardar a pasta.</div>
+
+<h2 id="rapida">2. Instalação rápida (Windows)</h2>
+<ol>
+<li>Copie a pasta <code>Faunopolis</code> para onde preferir (ex.: <code>Documentos\Jogos\Faunopolis</code>). Se recebeu um arquivo .zip, clique com o botão direito → <i>Extrair tudo…</i> antes de jogar.</li>
+<li>Dê dois cliques em <b><code>JOGAR.bat</code></b>. O jogo abre no navegador padrão.</li>
+<li>Alternativa: dê dois cliques em <code>index.html</code> ou arraste-o para uma janela do Chrome/Edge.</li>
+<li>Opcional: para criar um atalho na Área de Trabalho, clique com o botão direito em <code>JOGAR.bat</code> → <i>Mostrar mais opções</i> → <i>Enviar para</i> → <i>Área de trabalho (criar atalho)</i>.</li>
+</ol>
+<div class="box"><b>Tela cheia:</b> pressione <kbd>F11</kbd> no navegador. Para sair, <kbd>F11</kbd> de novo.</div>
+<div class="box warn"><b>Aviso do Windows SmartScreen.</b> Arquivos <code>.bat</code> baixados da internet podem exibir “O Windows protegeu o computador”. O <code>JOGAR.bat</code> apenas abre o <code>index.html</code> (você pode conferir o conteúdo abrindo-o no Bloco de Notas). Se preferir, abra o <code>index.html</code> diretamente.</div>
+
+<h2 id="outros">3. macOS e Linux</h2>
+<ul>
+<li>Abra <code>index.html</code> com dois cliques (ou clique com o botão direito → <i>Abrir com</i> → Chrome/Firefox/Safari).</li>
+<li>No Linux, também é possível: <code>xdg-open index.html</code>.</li>
+<li>No macOS: <code>open index.html</code> no Terminal, a partir da pasta do jogo.</li>
+</ul>
+
+<h2 id="servidor">4. Executar com servidor local (opcional)</h2>
+<p>O jogo funciona abrindo o arquivo diretamente. Um servidor local é útil para desenvolvimento, para testar em outros dispositivos da rede ou se o navegador tiver políticas que restrinjam arquivos locais.</p>
+<h4>Windows (com Python instalado)</h4>
+<p>Dê dois cliques em <code>SERVIDOR_LOCAL.bat</code>. Ele inicia <code>python -m http.server 8080</code> na pasta do jogo e abre <code>http://localhost:8080</code>. Feche a janela preta para parar o servidor.</p>
+<h4>Manual (qualquer sistema)</h4>
+<pre><code># Python 3
+cd Faunopolis
+python -m http.server 8080
+
+# ou Node.js
+npx --yes serve -l 8080 .</code></pre>
+<p>Depois acesse <code>http://localhost:8080</code>.</p>
+<div class="box gold"><b>Atenção aos salvamentos:</b> o navegador guarda salvamentos por endereço. Jogos salvos em <code>file:///…/index.html</code> não aparecem em <code>http://localhost:8080</code> e vice-versa. Use <i>Exportar para arquivo</i> e <i>Importar</i> para levar o progresso de um para o outro.</div>
+
+<h2 id="estrutura">5. Estrutura da pasta</h2>
+<pre><code>Faunopolis/
+├── index.html                ← o jogo
+├── JOGAR.bat                 ← abre o jogo (Windows)
+├── SERVIDOR_LOCAL.bat        ← servidor local opcional (Windows + Python)
+├── galeria-de-sprites.html   ← visualizador de todos os sprites
+├── LEIA-ME.md                ← resumo rápido
+├── css/style.css             ← estilos da interface
+├── js/                       ← código do jogo (15 módulos)
+│   ├── config.js  util.js  sprites.js  audio.js  world.js
+│   ├── animals.js staff.js economy.js  visitors.js
+│   └── render.js  input.js sim.js      save.js   ui.js  main.js
+├── assets/
+│   ├── favicon.svg
+│   └── brand/                ← logos oficiais em SVG
+├── docs/
+│   ├── MANUAL_DO_JOGO.html / .pdf
+│   ├── MANUAL_DE_INSTALACAO.html / .pdf
+│   ├── MANUAL_DA_MARCA.html / .pdf
+│   ├── GDD_original.md       ← documento de design de referência
+│   └── doc.css
+└── tools/gerar-tabelas.js    ← regenera tabelas do manual a partir do código</code></pre>
+
+<h2 id="saves">6. Salvamentos e backup</h2>
+<ul>
+<li>Salvamentos ficam no armazenamento local do navegador (<code>localStorage</code>): automático (a cada 3 dias de jogo e ao sair) + 3 espaços manuais.</li>
+<li><b>Backup:</b> Menu ☰ → Salvar → <i>Exportar para arquivo</i>. Gera <code>NomeDoZoo_diaN.faunopolis</code> na pasta de downloads.</li>
+<li><b>Restaurar / trocar de computador:</b> Menu principal → Carregar jogo → <i>Importar arquivo .faunopolis</i>.</li>
+<li>Limpar os dados de navegação do site (cookies e dados de sites) <b>apaga os salvamentos</b>. Navegação anônima não mantém salvamentos.</li>
+</ul>
+
+<h2 id="atualizar">7. Atualizar e desinstalar</h2>
+<p><b>Atualizar:</b> exporte seus salvamentos, substitua a pasta pela versão nova e importe se necessário (normalmente os salvamentos continuam no navegador, desde que você abra o jogo pelo mesmo caminho).</p>
+<p><b>Desinstalar:</b> apague a pasta <code>Faunopolis</code>. Para remover também os salvamentos, limpe os dados do site no navegador.</p>
+
+<h2 id="publicar">8. Publicar na internet</h2>
+<p>Por ser um site estático, o jogo pode ser hospedado em qualquer serviço de páginas estáticas, enviando o conteúdo da pasta (com <code>index.html</code> na raiz):</p>
+<ul>
+<li><b>itch.io:</b> compacte a pasta em .zip, crie um projeto do tipo <i>HTML</i>, envie o arquivo e marque “This file will be played in the browser”. Tamanho de janela sugerido: 1280×720 com botão de tela cheia.</li>
+<li><b>GitHub Pages, Netlify, Vercel, Cloudflare Pages:</b> publique a pasta como site estático, sem comando de build.</li>
+<li>Para empacotar como aplicativo de desktop, ferramentas como Electron, Tauri ou NW.js podem carregar o <code>index.html</code> sem alterações no código.</li>
+</ul>
+
+<h2 id="problemas">9. Solução de problemas</h2>
+<table>
+<tr><th>Sintoma</th><th>Causa provável</th><th>Solução</th></tr>
+<tr><td>Tela preta ou menu sem botões funcionando</td><td>Navegador muito antigo ou JavaScript desativado</td><td>Atualize o navegador; ative JavaScript; tente Chrome/Edge</td></tr>
+<tr><td>Fontes diferentes das imagens do manual</td><td>Sem internet (Google Fonts não carregou)</td><td>Normal; o jogo usa fontes do sistema. Conecte-se uma vez para usar as fontes da marca</td></tr>
+<tr><td>Sem som</td><td>Navegadores bloqueiam áudio até a primeira interação; volume no menu</td><td>Clique no jogo; verifique Menu ☰ → Volume / Silenciar</td></tr>
+<tr><td>“Continuar” desabilitado</td><td>Jogo aberto por outro endereço ou dados limpos</td><td>Abra pelo mesmo caminho de antes ou importe um arquivo .faunopolis</td></tr>
+<tr><td>Lentidão em zoom muito afastado</td><td>Muitos objetos visíveis em computadores modestos</td><td>Use zoom mais próximo; feche outras abas; prefira Chrome/Edge</td></tr>
+<tr><td>Não foi possível salvar no navegador</td><td>Armazenamento cheio ou navegação anônima</td><td>Use uma janela normal; exporte para arquivo</td></tr>
+<tr><td>Jogo pausado “sozinho”</td><td>A aba ficou em segundo plano (o navegador suspende a animação)</td><td>Volte à aba; o jogo retoma automaticamente</td></tr>
+</table>
+</main></div>
+<footer>FAUNÓPOLIS · Manual de Instalação · v1.0.0</footer>
+</body>
+</html>

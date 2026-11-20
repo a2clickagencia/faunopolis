@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual do Jogo — Faunópolis</title>
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="stylesheet" href="doc.css">
+</head>
+<body>
+<header class="cover">
+  <img src="../assets/brand/logo-negativo.svg" alt="Faunópolis">
+  <h1>Manual Completo do Jogo</h1>
+  <p>Jogabilidade, sistemas, fórmulas, física, sprites, assets, interface, balanceamento e arquitetura técnica de Faunópolis — o simulador de construção e gestão de zoológico em 2D top-down.</p>
+  <div class="meta">Versão do jogo 1.0.0 · Documento 1.0 · 18 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
+</header>
+<div class="layout">
+<nav class="toc">
+  <b>Sumário</b>
+  <ol>
+    <li><a href="#visao">Visão geral</a></li>
+    <li><a href="#inicio">Primeiros passos</a></li>
+    <li><a href="#controles">Controles</a></li>
+    <li><a href="#interface">Interface</a></li>
+    <li><a href="#tempo">Tempo e calendário</a></li>
+    <li><a href="#mapa">Mapa, terreno e lotes</a></li>
+    <li><a href="#construcao">Construção</a></li>
+    <li><a href="#recintos">Recintos e capacidade</a></li>
+    <li><a href="#habitat">Habitat e biomas</a></li>
+    <li><a href="#animais">Animais</a></li>
+    <li><a href="#especies">Catálogo de espécies</a></li>
+    <li><a href="#reproducao">Reprodução, idade e morte</a></li>
+    <li><a href="#alimentacao">Alimentação e estoque</a></li>
+    <li><a href="#limpeza">Limpeza</a></li>
+    <li><a href="#funcionarios">Funcionários</a></li>
+    <li><a href="#saude">Saúde, doenças e quarentena</a></li>
+    <li><a href="#visitantes">Visitantes</a></li>
+    <li><a href="#ingresso">Ingresso, demanda e reputação</a></li>
+    <li><a href="#economia">Economia e finanças</a></li>
+    <li><a href="#instalacoes">Instalações e decoração</a></li>
+    <li><a href="#progressao">Progressão, etapas e eventos</a></li>
+    <li><a href="#notificacoes">Notificações e leitura do parque</a></li>
+    <li><a href="#fisica">Física e movimento</a></li>
+    <li><a href="#render">Renderização e câmera</a></li>
+    <li><a href="#sprites">Sprites e assets</a></li>
+    <li><a href="#audio">Áudio</a></li>
+    <li><a href="#save">Salvamento</a></li>
+    <li><a href="#arquitetura">Arquitetura técnica</a></li>
+    <li><a href="#requisitos">Mapa de requisitos (RF)</a></li>
+    <li><a href="#dicas">Estratégias e dicas</a></li>
+    <li><a href="#faq">Perguntas frequentes</a></li>
+    <li><a href="#glossario">Glossário</a></li>
+  </ol>
+</nav>
+<main>
+
+<h2 id="visao">1. Visão geral</h2>
+<p><b>Faunópolis</b> é um jogo de simulação, construção e gestão de zoológico com visão superior (top-down) em 2D. O jogador começa com um terreno pequeno, R$ 60.000 e poucas espécies, e precisa planejar o espaço, construir e ampliar recintos, adquirir e cuidar dos animais, contratar funcionários, atrair visitantes, definir o preço do ingresso e equilibrar receitas e despesas — até transformar um pequeno zoológico em um parque de referência, com sete biomas e, por fim, criaturas fantásticas.</p>
+<div class="box gold"><b>Essência do jogo.</b> Crescer sem perder o controle: um zoológico maior pode render mais, mas só é bem-sucedido se os animais estiverem bem cuidados, os visitantes satisfeitos e as contas equilibradas.</div>
+<h3>Os quatro indicadores</h3>
+<div class="grid2">
+  <div class="card"><h4>💚 Bem-estar animal</h4>Média do bem-estar de todos os animais: alimentação, habitat, limpeza, saúde, espaço e grupo social.</div>
+  <div class="card"><h4>😀 Satisfação dos visitantes</h4>Média da felicidade dos visitantes do dia: variedade, qualidade dos recintos, serviços, preço, lixo e lotação.</div>
+  <div class="card"><h4>💰 Saúde financeira</h4>Saldo, receita e despesa do dia (barra superior) e histórico no painel de Finanças.</div>
+  <div class="card"><h4>🌿 Qualidade ambiental</h4>Beleza (decoração e vegetação vistas dos caminhos), limpeza média e adequação dos habitats.</div>
+</div>
+<p>Os indicadores aparecem tanto agregados (barra superior) quanto por recinto (tooltip, painel e lentes), para que uma média geral nunca esconda um recinto em situação crítica.</p>
+<h3>Modos de jogo</h3>
+<table><tr><th>Modo</th><th>Dinheiro inicial</th><th>Conteúdo</th><th>Falência</th></tr>
+<tr><td>🏆 Carreira</td><td>R$ 60.000</td><td>Liberado em 5 etapas (pequeno zoológico → conteúdo fantástico)</td><td>Sim: 20 dias seguidos com saldo negativo</td></tr>
+<tr><td>🌿 Livre</td><td>R$ 500.000</td><td>Tudo liberado (todas as espécies, biomas, instalações, doenças e eventos)</td><td>Não</td></tr></table>
+
+<h2 id="inicio">2. Primeiros passos</h2>
+<ol>
+  <li>No menu principal, clique em <b>Nova carreira</b>, dê um nome ao zoológico e clique em <b>Começar</b>.</li>
+  <li>Você começa com uma <b>entrada</b>, um caminho em “T”, 1 tratador e 1 auxiliar de limpeza, e algum estoque de feno, frutas, sementes e insetos.</li>
+  <li>Clique em <b>🧱 Novo recinto</b> (tecla <kbd>R</kbd>) e arraste um retângulo de pelo menos 3×3 tiles no seu terreno, <b>encostado em um caminho</b>.</li>
+  <li>Abra <b>🏞️ Terreno</b> e pinte o interior com o solo da espécie (ex.: <i>Capim de savana</i> para zebras e avestruzes; <i>Areia</i> para suricatos).</li>
+  <li>Adicione vegetação (🌳) e água: um <b>Bebedouro animal</b> ou um pequeno lago pintando <i>Água</i>. Espécies que pedem abrigo precisam de um <b>Abrigo para animais</b>.</li>
+  <li>No painel do recinto, clique em <b>🛒 Adquirir animais</b>. A tag colorida mostra a adequação do habitat (%). Compre um grupo que respeite o <b>grupo mínimo</b> da espécie e tenha machos e fêmeas.</li>
+  <li>Construa uma <b>Lanchonete</b>, <b>Banheiros</b>, um <b>Quiosque de bebidas</b> e alguns <b>Bancos</b> encostados nos caminhos.</li>
+  <li>No painel <b>🎟️ Visitantes</b>, compare o preço do ingresso com o <b>preço justo</b>.</li>
+  <li>Acelere o tempo (<kbd>2</kbd>, <kbd>3</kbd>, <kbd>4</kbd>) e acompanhe notificações, finanças e o painel <b>🏆 Progresso</b>.</li>
+</ol>
+<div class="box tip"><b>Guia rápido.</b> O painel 📘 Guia mostra uma lista de verificação que se marca sozinha conforme você conclui cada passo.</div>
+
+<h2 id="controles">3. Controles</h2>
+<table>
+<tr><th>Ação</th><th>Mouse</th><th>Teclado</th></tr>
+<tr><td>Mover a câmera</td><td>Botão direito ou do meio + arrastar · clique no minimapa</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas</td></tr>
+<tr><td>Zoom</td><td>Roda do mouse (centrado no cursor)</td><td><kbd>+</kbd> / <kbd>-</kbd></td></tr>
+<tr><td>Selecionar / inspecionar</td><td>Clique esquerdo (animal, instalação, recinto, decoração)</td><td>—</td></tr>
+<tr><td>Informação rápida</td><td>Passar o mouse (ferramenta Selecionar)</td><td>—</td></tr>
+<tr><td>Cancelar ferramenta / fechar painel</td><td>Clique direito sem arrastar</td><td><kbd>Esc</kbd></td></tr>
+<tr><td>Pausar / continuar</td><td>Botão ⏸</td><td><kbd>Espaço</kbd></td></tr>
+<tr><td>Velocidade 1× / 2× / 4× / 8×</td><td>Botões ▶ ▶▶ ⏩ ⏭</td><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td></tr>
+<tr><td>Ferramenta Caminho / Recinto / Demolir</td><td>Barra esquerda</td><td><kbd>C</kbd> / <kbd>R</kbd> / <kbd>B</kbd></td></tr>
+<tr><td>Alternar lentes</td><td>Botões acima do minimapa</td><td><kbd>L</kbd></td></tr>
+<tr><td>Salvamento rápido</td><td>Menu ☰ → Salvar</td><td><kbd>F5</kbd></td></tr>
+</table>
+<p>Telas sensíveis ao toque: arrastar com um dedo move a câmera, pinça com dois dedos faz zoom e toque simples equivale a um clique.</p>
+
+<h2 id="interface">4. Interface</h2>
+<p>A interface prioriza o mapa: os painéis só aparecem quando você seleciona algo ou abre um menu.</p>
+<div class="grid2">
+<div class="card"><h4>Barra superior</h4>Símbolo · <b>Saldo</b> e resultado do dia · <b>Visitantes</b> no parque e no dia · <b>Avaliação</b> (estrelas = reputação/20) · <b>Satisfação</b> · <b>Bem-estar</b> · etapa e evento atual · <b>hora</b> (aberto/fechado) e data · velocidade · menu ☰.</div>
+<div class="card"><h4>Barra de construção (esquerda)</h4>🖱️ Selecionar · 🛤️ Caminhos · 🧱 Novo recinto · 🏞️ Terreno e biomas · 🌳 Vegetação · 🪨 Decoração e enriquecimento · 🍔 Instalações para visitantes · 🏥 Instalações operacionais · 🗺️ Comprar terreno · 🧨 Demolir. Categorias abrem uma paleta com ícone, nome, preço e bioma de cada item; itens bloqueados mostram 🔒 e a etapa necessária.</div>
+<div class="card"><h4>Barra de gestão (inferior)</h4>🦓 Animais · 🛒 Mercado · 👷 Equipe · 🥕 Alimentação · 🩺 Saúde · 🎟️ Visitantes · 💰 Finanças · 🏆 Progresso · 🔔 Notificações (com contador de alertas) · 📘 Guia.</div>
+<div class="card"><h4>Minimapa e lentes (inferior direito)</h4>Mapa completo com a área visível. Lentes colorem os recintos por indicador: 👁️ normal · 💚 bem-estar · 🧹 limpeza · ➕ saúde · 🌿 habitat · 👥 lotação (verde = bom, amarelo = atenção, vermelho = crítico).</div>
+</div>
+<h3>Tooltip de recinto</h3>
+<p>Ao passar o mouse sobre um recinto aparecem: nome, espécie(s), <b>população / capacidade</b> (ex.: <b>5 / 15</b> animais) com o estado da ocupação, barras de <b>bem-estar, limpeza, alimentação, saúde e habitat</b>, o <b>estado geral</b> (Excelente, Bom, Regular, Ruim, Crítico) e um aviso caso nenhum caminho de visitantes encoste nele. O mesmo vale para animais (nome, espécie, sexo, fase, saúde, bem-estar, alimentação) e instalações (conexão, usos e receita).</p>
+<h3>Painel do recinto</h3>
+<p>Nome editável · chips de espécie e tamanho · contador grande <b>população / capacidade</b> com barra de ocupação (marca em 85%) · indicadores · botões <i>Adquirir animais</i>, <i>Ampliar</i>, <i>Alimentar agora</i>, <i>Limpar agora</i> · <i>Permitir reprodução</i> · <i>Prioridade da equipe</i> (alta/normal/baixa) · tabela de população (machos, fêmeas, filhotes, nascimentos previstos) · adequação do habitat por espécie com detalhamento (terreno, água, vegetação, abrigo, enriquecimento) · lista de animais · custos diários.</p>
+<h3>Estados de ocupação</h3>
+<table><tr><th>Ocupação (espaço usado ÷ tiles)</th><th>Estado</th><th>Cor</th></tr>
+<tr><td>&lt; 40%</td><td>Baixa ocupação</td><td><span class="chip" style="background:#2E8FB8">azul</span></td></tr>
+<tr><td>40% – 84%</td><td>Ocupação adequada</td><td><span class="chip" style="background:#4caf50">verde</span></td></tr>
+<tr><td>85% – 100%</td><td>Próximo do limite (alerta preventivo)</td><td><span class="chip" style="background:#F2B33D">amarelo</span></td></tr>
+<tr><td>&gt; 100%</td><td>Superlotado (penalidades)</td><td><span class="chip" style="background:#E8574B">vermelho</span></td></tr></table>
+
+<h2 id="tempo">5. Tempo e calendário</h2>
+<table>
+<tr><td>1 hora de jogo</td><td>6 segundos reais em 1× (3 s em 2×, 1,5 s em 4×, 0,75 s em 8×)</td></tr>
+<tr><td>1 dia</td><td>24 horas = 2 min 24 s em 1×</td></tr>
+<tr><td>Mês / ano</td><td>30 dias / 12 meses (360 dias)</td></tr>
+<tr><td>Funcionamento</td><td>Aberto das 8h às 20h; visitantes chegam até as 19h e todos saem até o fechamento</td></tr>
+<tr><td>Rotinas</td><td>Alimentação às 7h, 13h e 19h · limpeza a cada hora · compra automática de alimento a cada 6 h · fechamento financeiro à meia-noite</td></tr>
+<tr><td>Fim de semana</td><td>Dias 6 e 7 de cada semana: +30% de procura</td></tr>
+<tr><td>Dia e noite</td><td>Entardecer 18h30–21h, noite 21h–5h, amanhecer 5h–7h. À noite os animais dormem e postes, instalações e cristais acendem.</td></tr>
+</table>
+
+<h2 id="mapa">6. Mapa, terreno e lotes</h2>
+<p>O mapa tem <b>72 × 56 tiles</b> de 32 px, divididos em <b>lotes de 8 × 8 tiles</b>. O zoológico começa com 3 × 3 lotes (24 × 24 tiles). Uma estrada pública chega à entrada pelo sul; a última faixa do mapa é estrada e não pode ser comprada.</p>
+<ul>
+<li><b>Comprar terreno (🗺️):</b> clique em um lote destacado vizinho ao seu terreno. Preço: <code>6.000 × 1,17^(lotes possuídos − 9)</code>, arredondado a R$ 100 — cada lote fica mais caro.</li>
+<li>O terreno inicial é gerado por ruído procedural: grama, manchas de floresta (com árvores nativas), areia, rochas, cerrado e lagos. Vegetação nativa pode ser mantida, aproveitada em recintos ou demolida.</li>
+<li>Terreno não adquirido aparece escurecido; o limite do seu terreno é uma linha tracejada creme.</li>
+</ul>
+<h3>Tipos de terreno</h3>
+<div class="tablewrap"><!--TERRAINS-->
+<table class="data"><thead><tr><th>ID</th><th>Terreno</th><th>Custo/tile</th><th>Cor base</th><th>Cor de detalhe</th><th>Etapa</th></tr></thead><tbody>
+<tr><td>0</td><td>Grama</td><td>R$ 4</td><td><span class="sw" style="background:#6fae4f"></span> #6fae4f</td><td><span class="sw" style="background:#5f9c43"></span> #5f9c43</td><td>1</td></tr>
+<tr><td>1</td><td>Capim de savana</td><td>R$ 8</td><td><span class="sw" style="background:#cdb85e"></span> #cdb85e</td><td><span class="sw" style="background:#b9a24a"></span> #b9a24a</td><td>1</td></tr>
+<tr><td>2</td><td>Areia</td><td>R$ 8</td><td><span class="sw" style="background:#ead6a0"></span> #ead6a0</td><td><span class="sw" style="background:#d9c286"></span> #d9c286</td><td>1</td></tr>
+<tr><td>3</td><td>Lama / brejo</td><td>R$ 8</td><td><span class="sw" style="background:#8b6d48"></span> #8b6d48</td><td><span class="sw" style="background:#76593a"></span> #76593a</td><td>1</td></tr>
+<tr><td>4</td><td>Neve</td><td>R$ 12</td><td><span class="sw" style="background:#eef5f8"></span> #eef5f8</td><td><span class="sw" style="background:#d6e5ec"></span> #d6e5ec</td><td>1</td></tr>
+<tr><td>5</td><td>Água (lago)</td><td>R$ 22</td><td><span class="sw" style="background:#3a8fc6"></span> #3a8fc6</td><td><span class="sw" style="background:#2f7fb4"></span> #2f7fb4</td><td>1</td></tr>
+<tr><td>6</td><td>Solo de floresta</td><td>R$ 8</td><td><span class="sw" style="background:#3f7a3a"></span> #3f7a3a</td><td><span class="sw" style="background:#33682f"></span> #33682f</td><td>1</td></tr>
+<tr><td>7</td><td>Rochoso</td><td>R$ 10</td><td><span class="sw" style="background:#a19e93"></span> #a19e93</td><td><span class="sw" style="background:#8a877d"></span> #8a877d</td><td>1</td></tr>
+<tr><td>8</td><td>Cerrado (terra roxa)</td><td>R$ 8</td><td><span class="sw" style="background:#b9874f"></span> #b9874f</td><td><span class="sw" style="background:#a47442"></span> #a47442</td><td>1</td></tr>
+<tr><td>9</td><td>Gelo</td><td>R$ 14</td><td><span class="sw" style="background:#bfe4f2"></span> #bfe4f2</td><td><span class="sw" style="background:#a6d5e8"></span> #a6d5e8</td><td>1</td></tr>
+<tr><td>10</td><td>Solo místico</td><td>R$ 30</td><td><span class="sw" style="background:#7d63b8"></span> #7d63b8</td><td><span class="sw" style="background:#6a51a4"></span> #6a51a4</td><td>5</td></tr>
+</tbody></table>
+<!--/TERRAINS--></div>
+<p>A água é atravessável apenas por espécies que nadam; para as demais é um obstáculo. Não é possível construir caminhos ou instalações sobre a água.</p>
+
+<h2 id="construcao">7. Construção</h2>
+<table>
+<tr><th>Ferramenta</th><th>Como usar</th><th>Custo</th><th>Regras</th></tr>
+<tr><td>🛤️ Caminho</td><td>Clique e arraste (pinta tile a tile; diagonais viram “escadinhas” para manter a conexão ortogonal)</td><td>R$ 12/tile</td><td>Terreno próprio, livre, fora de recintos e da água</td></tr>
+<tr><td>🧱 Novo recinto</td><td>Arraste um retângulo</td><td>R$ 15/tile + R$ 14 por trecho de cerca + R$ 200</td><td>Mínimo 3×3; área livre de caminhos, instalações e outros recintos (vegetação existente é incorporada)</td></tr>
+<tr><td>↔️ Ampliar</td><td>No painel do recinto → Ampliar, depois arraste uma área encostada</td><td>R$ 15/tile novo + cerca adicional</td><td>A área deve tocar o recinto selecionado</td></tr>
+<tr><td>🏞️ Terreno</td><td>Arraste para pintar; pincel 1×1, 3×3 ou 5×5</td><td>Custo do terreno por tile</td><td>Não pinta caminhos, estrada nem sob instalações</td></tr>
+<tr><td>🌳/🪨 Vegetação e decoração</td><td>Clique ou arraste</td><td>Por item</td><td>1 tile livre; itens de visitantes só fora dos recintos; aguapés só na água</td></tr>
+<tr><td>🍔/🏥 Instalações</td><td>Clique (prévia verde/vermelha)</td><td>Por instalação</td><td>Fora de recintos e da água; precisa <b>encostar em um caminho ligado à entrada</b> para funcionar (exceto estacionamento)</td></tr>
+<tr><td>🧨 Demolir</td><td>Arraste um retângulo</td><td>Reembolso: 40% de objetos, R$ 6 por caminho, R$ 5 por tile de recinto</td><td>A entrada e seu acesso não podem ser removidos. Recinto com animais precisa manter ≥ 9 tiles; para demolir inteiro, esvazie-o</td></tr>
+</table>
+<p>Durante o arraste aparece uma prévia com dimensões, custo, capacidade resultante (ampliação) ou o motivo do bloqueio.</p>
+
+<h2 id="recintos">8. Recintos e capacidade</h2>
+<p>O recinto é a unidade fundamental. Cada um possui: identificação e nome, área (tiles), capacidade, população, espécies, limpeza, qualidade ambiental, adequação do habitat, alimentação, bem-estar e saúde dos animais, custo de manutenção (R$ 0,50/tile + R$ 5 por dia), prioridade da equipe e opção de reprodução.</p>
+<h3>Capacidade</h3>
+<div class="formula">capacidade (animais) = piso( tiles do recinto ÷ espaço por animal da espécie predominante )
+espaço usado        = Σ espaço da espécie × (0,5 se filhote, senão 1)
+ocupação            = espaço usado ÷ tiles</div>
+<p>Exemplo: um recinto de 42 tiles com zebras (6 tiles/animal) comporta <b>7</b> zebras. Os filhotes fazem parte da população e ocupam metade do espaço. A capacidade <b>não é o único critério de qualidade</b>: um recinto abaixo do limite ainda pode ser ruim por terreno errado, pouca vegetação, falta de água ou de estruturas.</p>
+<h3>Visibilidade</h3>
+<p>Um recinto só conta para a atratividade se houver <b>tiles de caminho alcançáveis a partir da entrada encostados nele</b> (inclusive na diagonal). Com o recinto selecionado, esses tiles de observação aparecem em azul.</p>
+<h3>Convivência de espécies</h3>
+<p>Espécies diferentes podem dividir um recinto se forem do <b>mesmo bioma</b> e <b>nenhuma for predadora</b>. Predadores só convivem com a própria espécie. A capacidade exibida usa a espécie mais numerosa; a ocupação usa o espaço real de todas.</p>
+
+<h2 id="habitat">9. Habitat e biomas</h2>
+<p>A adequação do habitat (0–100%) é calculada por espécie, a partir do conteúdo real do recinto:</p>
+<div class="formula">terreno     = Σ(afinidade da espécie com o terreno de cada tile seco) ÷ tiles secos
+água        = se a espécie deseja água: min(1, fração de água ÷ água desejada)
+              senão: 1 com bebedouro ou lago, 0,35 sem fonte de água
+              (×0,5 se espécie não nadadora e mais de 45% do recinto for água)
+vegetação   = min(1, (plantas preferidas ÷ tiles) ÷ densidade desejada)   [1 se não precisa]
+abrigo      = 1 com Abrigo; 0,25 sem (se exigido)
+enriquecim. = 1 com o objeto exigido; 0,4 sem (se exigido)
+
+HABITAT = 100 × (0,40·terreno + 0,20·água + 0,20·vegetação + 0,10·abrigo + 0,10·enriquecimento)</div>
+<p>No painel do recinto cada componente aparece em uma barra, com dicas do que a espécie prefere.</p>
+<h3>Biomas</h3>
+<table><tr><th>Bioma</th><th>Etapa</th><th>Terreno típico</th><th>Vegetação típica</th><th>Espécies</th></tr>
+<tr><td>🦁 África — Savana</td><td>1</td><td>Capim de savana, grama</td><td>Acácia, baobá, capim alto, arbusto</td><td>Zebra, avestruz, suricato, girafa, leão, elefante, rinoceronte</td></tr>
+<tr><td>🦜 Brasil — Floresta e Cerrado</td><td>1</td><td>Solo de floresta, cerrado, grama</td><td>Árvore tropical, palmeira, ipê-amarelo, bromélias</td><td>Capivara, tucano, arara, tamanduá, lobo-guará, onça, anta</td></tr>
+<tr><td>🐊 Manguezal e Pantanal</td><td>2</td><td>Lama/brejo, água</td><td>Mangue, aguapés, palmeira</td><td>Jacaré, ariranha, tuiuiú (e capivara)</td></tr>
+<tr><td>🐪 Região árida</td><td>2</td><td>Areia, rochoso</td><td>Cacto, arbusto seco</td><td>Raposa-do-deserto, camelo, jabuti</td></tr>
+<tr><td>🐯 Ásia — Florestas tropicais</td><td>3</td><td>Solo de floresta</td><td>Bambuzal, árvore tropical, samambaia</td><td>Tigre, panda-vermelho, gibão, orangotango</td></tr>
+<tr><td>🐧 Região polar</td><td>4</td><td>Neve, gelo, água</td><td>Pinheiro nevado, blocos de gelo</td><td>Pinguim, urso-polar, raposa-do-ártico</td></tr>
+<tr><td>🐉 Área fantástica</td><td>5</td><td>Solo místico, rochoso</td><td>Árvore mística, cristal arcano</td><td>Unicórnio, grifo, dragão, fênix</td></tr>
+</table>
+
+<h2 id="animais">10. Animais</h2>
+<p>Cada animal é uma entidade individual com: espécie, nome, sexo, idade (dias) e fase (filhote, adulto, idoso), saúde, bem-estar, saciedade (alimentação), estado de comportamento (andando, parado, dormindo), condição reprodutiva (apto, gestante, imaturo), doença (oculta ou diagnosticada), origem (compra ou nascimento) e recinto.</p>
+<h3>Necessidades e bem-estar (por hora)</h3>
+<div class="formula">saciedade  −= 4,6 (×0,8 filhotes)                          → recuperada nas refeições (+40, às 7h, 13h e 19h)
+alvo de bem-estar = 0,30·saciedade + 0,25·habitat + 0,20·limpeza + 0,15·saúde + 10
+                    − superlotação − déficit social + 5·cobertura de biólogos + bônus de conservação − 10 (se doente)
+  superlotação   = (ocupação − 1) × 90 se ocupação &gt; 1;  4 se ocupação &gt; 0,9
+  déficit social = (grupo mínimo − indivíduos da espécie) × (6 se grupo mín. &gt; 2, senão 10)
+bem-estar += (alvo − bem-estar) × 0,12</div>
+<div class="formula">saúde: +0,5/h se saciedade &gt; 40, limpeza &gt; 30 e bem-estar &gt; 40
+       −0,5/h se saciedade &lt; 20  (−1,0/h se &lt; 5)
+       −0,35/h se limpeza do recinto &lt; 20
+       −0,05/h se idoso
+       −gravidade da doença/h (metade se em tratamento)</div>
+<p>Alertas progressivos: o tratador avisa quando um animal passa 30 horas com fome (“está sem comer há mais de um dia…”), e um alerta crítico surge quando a saúde cai abaixo de 30%. A morte só ocorre com saúde 0, depois de vários avisos.</p>
+<h3>Compra, venda e transferência</h3>
+<ul>
+<li><b>Mercado:</b> renovado a cada 7 dias com 2–5 ofertas por espécie liberada (1–2 para espécies acima de R$ 50 mil). Cada oferta informa sexo, idade, origem (criadouro, zoológico parceiro, programa de conservação, centro de reabilitação) e preço (±20%; jovens 20% mais baratos).</li>
+<li><b>Bloqueios:</b> a compra é impedida se não houver espaço, se a espécie for incompatível com as do recinto ou se não houver área seca. Um aviso aparece se o habitat estiver abaixo de 45%.</li>
+<li><b>Venda:</b> valor = preço base × (0,55 filhote · 0,75 adulto · 0,30 idoso) × (0,4 + 0,6 × saúde) × (0,4 se doente).</li>
+<li><b>Programa de conservação:</b> transfere sem receita e dá +1,2 de reputação.</li>
+<li><b>Mover:</b> transfere entre recintos compatíveis com espaço.</li>
+<li>O jogo avisa quando uma venda deixaria o recinto sem a espécie ou sem o último macho/fêmea adulto (reprodução inviável).</li>
+</ul>
+
+<h2 id="especies">11. Catálogo de espécies</h2>
+<p>Tabela gerada automaticamente a partir de <code>js/config.js</code>. Espaço em tiles por adulto; alimento em unidades por dia; tempos em dias de jogo; fertilidade = chance diária de concepção em condições ideais.</p>
+<div class="tablewrap"><!--SPECIES-->
+<table class="data"><thead><tr><th>Espécie</th><th>Bioma</th><th>Etapa</th><th>Preço</th><th>Espaço</th><th>Alimento/dia</th><th>Grupo mín.</th><th>Atrat.</th><th>Maturidade</th><th>Gestação</th><th>Ninhada</th><th>Vida</th><th>Fert./dia</th><th>Terrenos (afinidade)</th><th>Água</th><th>Vegetação desejada</th><th>Abrigo / Enriq.</th><th>Traços</th></tr></thead><tbody>
+<tr><td><b>Zebra</b></td><td>África — Savana</td><td>1</td><td>R$ 2.800</td><td>6</td><td>6 · feno e folhagens</td><td>3</td><td>6</td><td>25 d</td><td>12 d</td><td>1–1</td><td>220 d</td><td>10%</td><td>Capim de savana (1), Grama (0.7), Areia (0.3)</td><td>3%</td><td>0.06/tile<br><small>Acácia, Capim alto, Arbusto, Baobá</small></td><td>—</td><td>vel. 1.5</td></tr>
+<tr><td><b>Avestruz</b></td><td>África — Savana</td><td>1</td><td>R$ 1.800</td><td>5</td><td>4 · sementes e grãos</td><td>2</td><td>5</td><td>18 d</td><td>8 d</td><td>1–3</td><td>200 d</td><td>12%</td><td>Capim de savana (1), Areia (0.8), Grama (0.5)</td><td>2%</td><td>0.03/tile<br><small>Acácia, Capim alto, Arbusto</small></td><td>—</td><td>vel. 2</td></tr>
+<tr><td><b>Suricato</b></td><td>África — Savana</td><td>1</td><td>R$ 600</td><td>1.5</td><td>1 · insetos</td><td>5</td><td>5</td><td>10 d</td><td>6 d</td><td>1–3</td><td>120 d</td><td>14%</td><td>Areia (1), Capim de savana (0.8), Rochoso (0.5)</td><td>0%</td><td>0.02/tile<br><small>Capim alto, Arbusto</small></td><td>Abrigo / Cupinzeiro</td><td>vel. 1.8</td></tr>
+<tr><td><b>Girafa</b></td><td>África — Savana</td><td>2</td><td>R$ 9.000</td><td>12</td><td>12 · feno e folhagens</td><td>2</td><td>9</td><td>40 d</td><td>20 d</td><td>1–1</td><td>300 d</td><td>7%</td><td>Capim de savana (1), Grama (0.6)</td><td>2%</td><td>0.12/tile<br><small>Acácia, Baobá</small></td><td>—</td><td>vel. 1.3</td></tr>
+<tr><td><b>Leão</b></td><td>África — Savana</td><td>2</td><td>R$ 12.000</td><td>10</td><td>7 · carne</td><td>2</td><td>10</td><td>35 d</td><td>14 d</td><td>1–2</td><td>260 d</td><td>8%</td><td>Capim de savana (1), Grama (0.6), Rochoso (0.5)</td><td>3%</td><td>0.04/tile<br><small>Acácia, Capim alto, Baobá</small></td><td>Abrigo</td><td>predador, vel. 1.4</td></tr>
+<tr><td><b>Elefante-africano</b></td><td>África — Savana</td><td>4</td><td>R$ 30.000</td><td>20</td><td>30 · feno e folhagens</td><td>2</td><td>13</td><td>60 d</td><td>30 d</td><td>1–1</td><td>420 d</td><td>5%</td><td>Capim de savana (1), Grama (0.7), Lama / brejo (0.6)</td><td>8%</td><td>0.06/tile<br><small>Acácia, Baobá, Arbusto</small></td><td>—</td><td>nada, vel. 1</td></tr>
+<tr><td><b>Rinoceronte</b></td><td>África — Savana</td><td>4</td><td>R$ 25.000</td><td>16</td><td>20 · feno e folhagens</td><td>1</td><td>12</td><td>50 d</td><td>28 d</td><td>1–1</td><td>380 d</td><td>5%</td><td>Capim de savana (1), Lama / brejo (0.8), Grama (0.6)</td><td>5%</td><td>0.04/tile<br><small>Acácia, Arbusto</small></td><td>—</td><td>vel. 1.1</td></tr>
+<tr><td><b>Capivara</b></td><td>Brasil — Floresta e Cerrado</td><td>1</td><td>R$ 900</td><td>3</td><td>3 · feno e folhagens</td><td>3</td><td>5</td><td>14 d</td><td>8 d</td><td>1–3</td><td>140 d</td><td>13%</td><td>Grama (1), Lama / brejo (0.9), Solo de floresta (0.6)</td><td>15%</td><td>0.06/tile<br><small>Arbusto, Árvore tropical, Mangue, Aguapés</small></td><td>—</td><td>nada, vel. 1.2</td></tr>
+<tr><td><b>Tucano</b></td><td>Brasil — Floresta e Cerrado</td><td>1</td><td>R$ 1.500</td><td>2</td><td>1.5 · frutas</td><td>2</td><td>6</td><td>15 d</td><td>6 d</td><td>1–2</td><td>150 d</td><td>12%</td><td>Solo de floresta (1), Grama (0.6)</td><td>2%</td><td>0.25/tile<br><small>Árvore tropical, Palmeira, Bromélias, Ipê-amarelo</small></td><td>—</td><td>voa, vel. 2.2</td></tr>
+<tr><td><b>Arara-vermelha</b></td><td>Brasil — Floresta e Cerrado</td><td>1</td><td>R$ 2.200</td><td>2</td><td>1.5 · sementes e grãos</td><td>2</td><td>7</td><td>16 d</td><td>7 d</td><td>1–2</td><td>200 d</td><td>10%</td><td>Solo de floresta (1), Grama (0.6)</td><td>2%</td><td>0.25/tile<br><small>Árvore tropical, Palmeira, Ipê-amarelo</small></td><td>— / Estrutura de escalada</td><td>voa, vel. 2.4</td></tr>
+<tr><td><b>Tamanduá-bandeira</b></td><td>Brasil — Floresta e Cerrado</td><td>2</td><td>R$ 4.000</td><td>6</td><td>3 · insetos</td><td>1</td><td>7</td><td>25 d</td><td>14 d</td><td>1–1</td><td>180 d</td><td>7%</td><td>Cerrado (terra roxa) (1), Grama (0.7), Capim de savana (0.6)</td><td>2%</td><td>0.06/tile<br><small>Ipê-amarelo, Arbusto, Capim alto</small></td><td>— / Cupinzeiro</td><td>vel. 1</td></tr>
+<tr><td><b>Lobo-guará</b></td><td>Brasil — Floresta e Cerrado</td><td>2</td><td>R$ 5.500</td><td>8</td><td>2 · carne</td><td>1</td><td>8</td><td>22 d</td><td>12 d</td><td>1–2</td><td>170 d</td><td>8%</td><td>Cerrado (terra roxa) (1), Capim de savana (0.7), Grama (0.6)</td><td>2%</td><td>0.06/tile<br><small>Ipê-amarelo, Arbusto, Capim alto</small></td><td>Abrigo</td><td>predador, vel. 1.7</td></tr>
+<tr><td><b>Onça-pintada</b></td><td>Brasil — Floresta e Cerrado</td><td>2</td><td>R$ 14.000</td><td>10</td><td>6 · carne</td><td>1</td><td>11</td><td>30 d</td><td>13 d</td><td>1–2</td><td>240 d</td><td>7%</td><td>Solo de floresta (1), Grama (0.6), Lama / brejo (0.5)</td><td>8%</td><td>0.15/tile<br><small>Árvore tropical, Palmeira, Bromélias</small></td><td>Abrigo</td><td>predador, nada, vel. 1.5</td></tr>
+<tr><td><b>Anta</b></td><td>Brasil — Floresta e Cerrado</td><td>2</td><td>R$ 6.000</td><td>8</td><td>8 · frutas</td><td>1</td><td>7</td><td>30 d</td><td>18 d</td><td>1–1</td><td>260 d</td><td>6%</td><td>Solo de floresta (1), Lama / brejo (0.9), Grama (0.6)</td><td>12%</td><td>0.12/tile<br><small>Árvore tropical, Bromélias, Arbusto</small></td><td>—</td><td>nada, vel. 1.1</td></tr>
+<tr><td><b>Jacaré-do-pantanal</b></td><td>Manguezal e Pantanal</td><td>2</td><td>R$ 5.000</td><td>5</td><td>3 · peixe</td><td>2</td><td>8</td><td>40 d</td><td>15 d</td><td>1–3</td><td>350 d</td><td>6%</td><td>Lama / brejo (1), Grama (0.4)</td><td>35%</td><td>0.06/tile<br><small>Mangue, Aguapés, Arbusto</small></td><td>—</td><td>predador, nada, vel. 0.7</td></tr>
+<tr><td><b>Ariranha</b></td><td>Manguezal e Pantanal</td><td>2</td><td>R$ 5.500</td><td>4</td><td>4 · peixe</td><td>3</td><td>8</td><td>20 d</td><td>10 d</td><td>1–2</td><td>160 d</td><td>9%</td><td>Lama / brejo (1), Grama (0.6), Solo de floresta (0.5)</td><td>40%</td><td>0.06/tile<br><small>Mangue, Aguapés, Arbusto</small></td><td>Abrigo</td><td>predador, nada, vel. 1.6</td></tr>
+<tr><td><b>Tuiuiú</b></td><td>Manguezal e Pantanal</td><td>2</td><td>R$ 3.500</td><td>4</td><td>2 · peixe</td><td>2</td><td>7</td><td>20 d</td><td>9 d</td><td>1–2</td><td>220 d</td><td>8%</td><td>Lama / brejo (1), Grama (0.6)</td><td>20%</td><td>0.05/tile<br><small>Mangue, Aguapés, Palmeira</small></td><td>—</td><td>nada, voa, vel. 1.3</td></tr>
+<tr><td><b>Raposa-do-deserto</b></td><td>Região árida e desértica</td><td>2</td><td>R$ 2.500</td><td>2</td><td>1.5 · insetos</td><td>2</td><td>7</td><td>14 d</td><td>8 d</td><td>1–2</td><td>150 d</td><td>10%</td><td>Areia (1), Rochoso (0.6)</td><td>0%</td><td>0.03/tile<br><small>Cacto, Arbusto seco</small></td><td>Abrigo</td><td>predador, vel. 1.8</td></tr>
+<tr><td><b>Camelo</b></td><td>Região árida e desértica</td><td>2</td><td>R$ 8.000</td><td>12</td><td>12 · feno e folhagens</td><td>2</td><td>7</td><td>40 d</td><td>22 d</td><td>1–1</td><td>320 d</td><td>6%</td><td>Areia (1), Rochoso (0.6), Capim de savana (0.5)</td><td>0%</td><td>0.02/tile<br><small>Cacto, Arbusto seco, Palmeira</small></td><td>—</td><td>vel. 1.2</td></tr>
+<tr><td><b>Jabuti</b></td><td>Região árida e desértica</td><td>2</td><td>R$ 1.500</td><td>3</td><td>1 · feno e folhagens</td><td>2</td><td>4</td><td>60 d</td><td>20 d</td><td>1–3</td><td>900 d</td><td>5%</td><td>Areia (1), Rochoso (0.8), Grama (0.6), Cerrado (terra roxa) (0.6)</td><td>0%</td><td>0.04/tile<br><small>Cacto, Arbusto seco, Arbusto</small></td><td>Abrigo</td><td>vel. 0.35</td></tr>
+<tr><td><b>Tigre</b></td><td>Ásia — Florestas tropicais</td><td>3</td><td>R$ 20.000</td><td>12</td><td>8 · carne</td><td>1</td><td>12</td><td>35 d</td><td>14 d</td><td>1–2</td><td>250 d</td><td>7%</td><td>Solo de floresta (1), Grama (0.7)</td><td>8%</td><td>0.15/tile<br><small>Árvore tropical, Bambuzal, Samambaia</small></td><td>Abrigo</td><td>predador, nada, vel. 1.5</td></tr>
+<tr><td><b>Panda-vermelho</b></td><td>Ásia — Florestas tropicais</td><td>3</td><td>R$ 9.000</td><td>3</td><td>2 · feno e folhagens</td><td>1</td><td>9</td><td>20 d</td><td>12 d</td><td>1–2</td><td>180 d</td><td>8%</td><td>Solo de floresta (1), Grama (0.6)</td><td>2%</td><td>0.3/tile<br><small>Bambuzal, Árvore tropical, Samambaia</small></td><td>— / Estrutura de escalada</td><td>vel. 1.1</td></tr>
+<tr><td><b>Gibão</b></td><td>Ásia — Florestas tropicais</td><td>3</td><td>R$ 7.000</td><td>4</td><td>2 · frutas</td><td>2</td><td>8</td><td>30 d</td><td>14 d</td><td>1–1</td><td>250 d</td><td>7%</td><td>Solo de floresta (1), Grama (0.5)</td><td>2%</td><td>0.3/tile<br><small>Árvore tropical, Bambuzal, Samambaia</small></td><td>— / Estrutura de escalada</td><td>vel. 1.9</td></tr>
+<tr><td><b>Orangotango</b></td><td>Ásia — Florestas tropicais</td><td>4</td><td>R$ 22.000</td><td>10</td><td>6 · frutas</td><td>2</td><td>11</td><td>60 d</td><td>30 d</td><td>1–1</td><td>400 d</td><td>4%</td><td>Solo de floresta (1), Grama (0.4)</td><td>2%</td><td>0.25/tile<br><small>Árvore tropical, Bambuzal, Samambaia</small></td><td>Abrigo / Estrutura de escalada</td><td>vel. 0.9</td></tr>
+<tr><td><b>Pinguim</b></td><td>Região polar</td><td>4</td><td>R$ 2.000</td><td>2</td><td>2 · peixe</td><td>4</td><td>9</td><td>18 d</td><td>9 d</td><td>1–2</td><td>200 d</td><td>11%</td><td>Neve (1), Gelo (1), Rochoso (0.5)</td><td>35%</td><td>0/tile</td><td>— / Bloco de gelo</td><td>nada, vel. 0.9</td></tr>
+<tr><td><b>Urso-polar</b></td><td>Região polar</td><td>4</td><td>R$ 28.000</td><td>16</td><td>12 · peixe</td><td>1</td><td>12</td><td>45 d</td><td>20 d</td><td>1–2</td><td>300 d</td><td>5%</td><td>Neve (1), Gelo (1), Rochoso (0.6)</td><td>25%</td><td>0/tile</td><td>Abrigo / Bloco de gelo</td><td>predador, nada, vel. 1.2</td></tr>
+<tr><td><b>Raposa-do-ártico</b></td><td>Região polar</td><td>4</td><td>R$ 4.500</td><td>3</td><td>2 · carne</td><td>2</td><td>7</td><td>16 d</td><td>9 d</td><td>1–3</td><td>150 d</td><td>10%</td><td>Neve (1), Gelo (0.8), Rochoso (0.7)</td><td>0%</td><td>0.02/tile<br><small>Pinheiro nevado</small></td><td>Abrigo</td><td>predador, vel. 1.8</td></tr>
+<tr><td><b>Unicórnio</b></td><td>Área fantástica</td><td>5</td><td>R$ 60.000</td><td>12</td><td>2 · essência mística</td><td>2</td><td>18</td><td>50 d</td><td>25 d</td><td>1–1</td><td>900 d</td><td>4%</td><td>Solo místico (1), Grama (0.7)</td><td>5%</td><td>0.1/tile<br><small>Árvore mística, Cristal arcano</small></td><td>—</td><td>vel. 1.6</td></tr>
+<tr><td><b>Grifo</b></td><td>Área fantástica</td><td>5</td><td>R$ 80.000</td><td>14</td><td>10 · carne</td><td>1</td><td>20</td><td>55 d</td><td>20 d</td><td>1–1</td><td>800 d</td><td>3%</td><td>Solo místico (1), Rochoso (0.9)</td><td>3%</td><td>0.04/tile<br><small>Árvore mística, Cristal arcano</small></td><td>Abrigo</td><td>predador, voa, vel. 1.7</td></tr>
+<tr><td><b>Dragão</b></td><td>Área fantástica</td><td>5</td><td>R$ 150.000</td><td>24</td><td>20 · carne</td><td>1</td><td>30</td><td>80 d</td><td>35 d</td><td>1–1</td><td>2000 d</td><td>2%</td><td>Solo místico (1), Rochoso (1), Lama / brejo (0.5)</td><td>5%</td><td>0.02/tile<br><small>Cristal arcano, Árvore mística</small></td><td>Abrigo / Cristal arcano</td><td>predador, nada, voa, vel. 1.3</td></tr>
+<tr><td><b>Fênix</b></td><td>Área fantástica</td><td>5</td><td>R$ 90.000</td><td>6</td><td>2 · essência mística</td><td>1</td><td>22</td><td>40 d</td><td>20 d</td><td>1–1</td><td>3000 d</td><td>3%</td><td>Solo místico (1), Rochoso (0.7), Areia (0.6)</td><td>0%</td><td>0.04/tile<br><small>Cristal arcano, Árvore mística</small></td><td>— / Cristal arcano</td><td>voa, vel. 2.2</td></tr>
+</tbody></table>
+<!--/SPECIES--></div>
+
+<h2 id="reproducao">12. Reprodução, idade e morte</h2>
+<p>Uma vez por dia, em cada recinto com reprodução permitida e ocupação abaixo de 100%, cada fêmea pode conceber se: houver um macho adulto saudável (saúde &gt; 50) da mesma espécie; ela for adulta, não idosa, não gestante, sem doença, com saúde &gt; 60 e bem-estar &gt; 55.</p>
+<div class="formula">chance diária = fertilidade × (bem-estar ÷ 100) × (1 + 0,5·cobertura de biólogos + 0,5·bônus de conservação) × (0,4 se ocupação &gt; 85%)</div>
+<ul>
+<li>A gestação dura o número de dias da espécie; nascem de 1 até a ninhada máxima. Filhotes nascem com saúde 90 e saciedade 80, e chegam à fase adulta na maturidade.</li>
+<li>Com biólogo, o jogador recebe aviso de gestação e o painel mostra “nascimentos previstos”.</li>
+<li>Cada nascimento dá +0,3 de reputação. Desligue “Permitir reprodução” para controlar a população.</li>
+<li>Avisos: “Próximo da capacidade” (≥ 85%) e “Capacidade atingida”, com sugestão de ampliar, transferir, vender ou desligar a reprodução.</li>
+</ul>
+<h3>Envelhecimento e morte</h3>
+<div class="formula">idoso: idade &gt; 80% da expectativa de vida
+após 90% da vida: chance diária de morte natural = ((idade − 0,9·V) ÷ (0,3·V))² × 0,12 × (0,6 se saúde &gt; 80, senão 1,3)</div>
+<p>Mortes naturais não afetam a reputação. Mortes por negligência (fome, doença) custam <b>−3 de reputação</b>.</p>
+
+<h2 id="alimentacao">13. Alimentação e estoque</h2>
+<p>O estoque é global, dividido por tipo de alimento. Os tratadores alimentam os animais <b>três vezes ao dia (7h, 13h e 19h)</b>; cada refeição consome 1/3 da ração diária (metade para filhotes) e soma +40 de saciedade.</p>
+<div class="tablewrap"><!--FOODS-->
+<table class="data"><thead><tr><th>Alimento</th><th>Preço/unidade</th><th>Espécies que consomem</th></tr></thead><tbody>
+<tr><td>🌾 Feno e folhagens</td><td>R$ 1,50</td><td>Zebra, Girafa, Elefante-africano, Rinoceronte, Capivara, Camelo, Jabuti, Panda-vermelho</td></tr>
+<tr><td>🍎 Frutas</td><td>R$ 3,00</td><td>Tucano, Anta, Gibão, Orangotango</td></tr>
+<tr><td>🌰 Sementes e grãos</td><td>R$ 2,00</td><td>Avestruz, Arara-vermelha</td></tr>
+<tr><td>🐛 Insetos</td><td>R$ 4,00</td><td>Suricato, Tamanduá-bandeira, Raposa-do-deserto</td></tr>
+<tr><td>🥩 Carne</td><td>R$ 6,00</td><td>Leão, Lobo-guará, Onça-pintada, Tigre, Raposa-do-ártico, Grifo, Dragão</td></tr>
+<tr><td>🐟 Peixe</td><td>R$ 5,00</td><td>Jacaré-do-pantanal, Ariranha, Tuiuiú, Pinguim, Urso-polar</td></tr>
+<tr><td>✨ Essência mística</td><td>R$ 30,00</td><td>Unicórnio, Fênix</td></tr>
+</tbody></table>
+<!--/FOODS--></div>
+<ul>
+<li><b>Capacidade do depósito:</b> 600 unidades + 800 por <i>Depósito de alimentos</i>.</li>
+<li><b>Compra manual:</b> +50 ou +200 unidades no painel 🥕.</li>
+<li><b>Compra automática</b> (por tipo): a cada 6 horas, se o estoque cobrir menos de 1,5 dia, compra até 3 dias de consumo com taxa de entrega de 10%. Também dispara ao comprar um animal cujo alimento está em falta.</li>
+<li>O painel mostra estoque, consumo diário, dias de duração (amarelo &lt; 3, vermelho &lt; 1,5), custo diário/mensal e recintos em risco de ficar sem alimento.</li>
+<li><b>Alimentar agora</b> (painel do recinto): refeição avulsa por R$ 30 + R$ 6 por animal.</li>
+<li>Consequências da falta: fome → bem-estar cai → saúde cai → desnutrição (doença) → morte em casos extremos, sempre com alertas antes.</li>
+</ul>
+
+<h2 id="limpeza">14. Limpeza</h2>
+<div class="formula">sujeira por hora (recinto com animais) = 0,25 + 2,0 × min(2, ocupação)    [vazio: +0,2/h de limpeza]
+capacidade de limpeza = 12 pontos/h por auxiliar × eficiência
+1 ponto restaura 40 ÷ (tiles do recinto) pontos percentuais de limpeza
+se houver lixo nos caminhos, até 35% da capacidade geral recolhe 1 unidade de lixo por ponto</div>
+<p>Auxiliares atribuídos a um recinto limpam-no primeiro; os gerais atendem por prioridade e menor limpeza. A sujeira aparece no mapa como manchas marrons; abaixo de 35% surge o ícone 🧹 e uma notificação. <b>Limpar agora</b> custa R$ 40 + R$ 2 por tile. Limpeza afeta bem-estar, saúde, chance de doenças e contágio, satisfação dos visitantes, preço justo e reputação.</p>
+
+<h2 id="funcionarios">15. Funcionários</h2>
+<div class="tablewrap"><!--STAFF-->
+<table class="data"><thead><tr><th>Função</th><th>Salário/dia</th><th>Contratação</th><th>Capacidade</th><th>Etapa</th><th>Responsabilidades</th></tr></thead><tbody>
+<tr><td>🧑‍🌾 Tratador(a)</td><td>R$ 60</td><td>R$ 300</td><td>14 animais</td><td>1</td><td>Alimenta os animais (7h e 15h) e observa comportamentos.</td></tr>
+<tr><td>🧹 Auxiliar de limpeza</td><td>R$ 45</td><td>R$ 225</td><td>12 pontos/h</td><td>1</td><td>Limpa recintos e recolhe o lixo dos caminhos.</td></tr>
+<tr><td>🧑‍🔬 Biólogo(a)</td><td>R$ 110</td><td>R$ 550</td><td>40 animais</td><td>2</td><td>Acompanha espécies: +reprodução, +bem-estar e previsão de nascimentos.</td></tr>
+<tr><td>💼 Administrador(a)</td><td>R$ 120</td><td>R$ 600</td><td>1 </td><td>2</td><td>-4% em todas as despesas operacionais (máx. 3).</td></tr>
+<tr><td>🩺 Veterinário(a)</td><td>R$ 140</td><td>R$ 700</td><td>3 pacientes</td><td>3</td><td>Diagnostica e trata doenças. Exige clínica.</td></tr>
+<tr><td>🧭 Guia de passeios</td><td>R$ 70</td><td>R$ 350</td><td>120 visitantes</td><td>4</td><td>Passeios guiados: +R$ 4 por visitante atendido e +satisfação.</td></tr>
+</tbody></table>
+<!--/STAFF--></div>
+<ul>
+<li><b>Eficiência:</b> 100% + 10% por <i>Sala dos funcionários</i> (máx. 2 → 120%).</li>
+<li><b>Atribuição:</b> tratadores e auxiliares podem ser atribuídos a um recinto específico (atendido primeiro) ou ficar em “Geral (automático)”, distribuídos por prioridade do recinto (alta &gt; normal &gt; baixa) e pela maior necessidade.</li>
+<li><b>Carga de trabalho:</b> o painel 👷 mostra capacidade × demanda de cada função com barra colorida e aviso “Equipe sobrecarregada”. Um único tratador atende no máximo 14 animais por rodada.</li>
+<li>Contratação custa 5 dias de salário; demissão custa 3 dias (rescisão).</li>
+<li>Funcionários aparecem no mapa com uniformes coloridos, caminhando até os recintos e instalações.</li>
+</ul>
+
+<h2 id="saude">16. Saúde, doenças e quarentena</h2>
+<p>Doenças, veterinários, clínica e quarentena entram na <b>Etapa 3</b> (no modo livre, desde o início).</p>
+<div class="tablewrap"><!--DISEASES-->
+<table class="data"><thead><tr><th>Doença</th><th>Saúde perdida/hora</th><th>Contágio/dia</th><th>Dias de tratamento</th><th>Custo/dia</th><th>Sintoma relatado</th></tr></thead><tbody>
+<tr><td>Parasitose</td><td>0.25</td><td>10%</td><td>3</td><td>R$ 60</td><td><i>"… está coçando muito e perdeu apetite"</i></td></tr>
+<tr><td>Infecção respiratória</td><td>0.45</td><td>18%</td><td>4</td><td>R$ 120</td><td><i>"… está tossindo e respirando com dificuldade"</i></td></tr>
+<tr><td>Gripe aviária <small>(só aves)</small></td><td>0.7</td><td>30%</td><td>5</td><td>R$ 180</td><td><i>"… está apática e com as penas eriçadas"</i></td></tr>
+<tr><td>Desnutrição</td><td>0.4</td><td>0%</td><td>3</td><td>R$ 70</td><td><i>"… está muito magro e fraco"</i></td></tr>
+<tr><td>Estresse crônico</td><td>0.2</td><td>0%</td><td>3</td><td>R$ 50</td><td><i>"… anda em círculos e está agitado"</i></td></tr>
+</tbody></table>
+<!--/DISEASES--></div>
+<div class="formula">surgimento diário = 0,0015 × (1 + (100 − limpeza) ÷ 35) × (2 se saúde &lt; 60) × (1,5 se idoso)
+desnutrição: após 24 h com saciedade &lt; 20      estresse: após 3 dias com bem-estar &lt; 25
+contágio diário (por doente, por colega de recinto) = contágio × (1,1 − limpeza ÷ 150)
+animais comprados: 4% de chance de chegar com parasitose ou infecção respiratória
+recuperação natural: 12%/dia para doenças leves (gravidade &lt; 0,3) sem tratamento</div>
+<h3>Detecção e notificações narrativas</h3>
+<p>Doenças começam ocultas. A cada hora, a chance de detecção é <code>1,2% + 3,5% × veterinários (com clínica) + 2% se o animal não come + 0,2% × tratadores</code>. Ao detectar, um funcionário relata o problema, por exemplo:</p>
+<div class="box"><b>Tratador — Recinto das araras</b><br>“Rosa (arara-vermelha) está apática e com as penas eriçadas. Precisamos de um veterinário e de uma clínica para investigar.”</div>
+<div class="box"><b>Veterinário — possível surto</b><br>“Foi identificada uma possível doença contagiosa em Recinto dos felinos. Recomendo isolar os animais doentes na quarentena.”</div>
+<h3>Tratamento e quarentena</h3>
+<ul>
+<li>Exige <b>Clínica veterinária</b> conectada aos caminhos e veterinários (3 pacientes cada × eficiência). Prioridade: quarentena, depois menor saúde.</li>
+<li>Progresso: <code>1 ÷ (dias × 24)</code> por hora; ×1,5 em quarentena. Custo: valor diário da doença ÷ 24 por hora. Em tratamento a doença tira metade da saúde.</li>
+<li><b>Quarentena:</b> 6 vagas por clínica. Isola o animal (sem contágio), mantém-no alimentado e acelera o tratamento. Libere-o ao final (ele volta ao recinto de origem).</li>
+<li>Opção “Quarentena automática na chegada” para animais recém-comprados.</li>
+</ul>
+
+<h2 id="visitantes">17. Visitantes</h2>
+<p>Visitantes são <b>agentes individuais</b>: chegam pela estrada, pagam o ingresso na entrada, circulam pela rede de caminhos, observam recintos, usam instalações, consomem, sujam o chão, comentam e vão embora.</p>
+<h3>Ciclo de decisão (IA)</h3>
+<ol>
+<li><b>Sair</b> se: o parque vai fechar, o tempo de visita (3 a 6,5 h) acabou ou a felicidade caiu abaixo de 12.</li>
+<li><b>Necessidades</b> (ordem): banheiro &lt; 25, fome &lt; 30, sede &lt; 30, energia &lt; 22 → busca em largura (BFS) até a porta mais próxima que atende a necessidade. Sem instalação alcançável: comentário de reclamação, −8 de felicidade e nova tentativa após 1,5 h.</li>
+<li><b>Recintos ainda não vistos</b> → BFS até o tile de observação mais próximo.</li>
+<li><b>Compras</b> (35% de chance, se tiver dinheiro) → loja de lembranças.</li>
+<li>Caso contrário, passeia aleatoriamente ou vai embora.</li>
+</ol>
+<div class="formula">necessidades por hora: fome −7 · sede −9 · banheiro −7 · energia −6     (necessidade zerada: −3 felicidade/h)
+ao observar um recinto (0,25–0,55 h):
+  atrativo = 0,4·bem-estar médio + 0,3·habitat + 0,3·limpeza
+  Δfelicidade = (atrativo − 52) ÷ 5 + min(10, 0,55 × Σ atratividade das espécies) + 3 (se há filhotes) − 6 (se superlotado)
+lixo no tile: −0,08 × unidades   beleza do caminho: +min(0,6; 0,012 × beleza local)
+lotação (&gt; 2 visitantes por tile de caminho): −2,5/h   ponto de informação: +0,6/h</div>
+<p>Ao comer ou beber, o visitante leva o lixo: a cada tile há 12% de chance de jogá-lo no chão (2% perto de uma lixeira, raio 6). Bolhas de pensamento mostram emoções e necessidades (😍 😕 🍔❓ 🚻❗ 💸).</p>
+<h3>Comentários</h3>
+<p>Os comentários refletem situações reais e se acumulam com contador (×N): falta de comida, bebida, banheiro ou bancos; ingresso caro ou justo; caminhos sujos; recinto sujo, pequeno, triste ou fora do habitat; recinto sem acesso visual; parque lotado; poucos animais; e elogios (“Adorei ver capivaras tão de perto!”, “O zoológico está muito bonito!”, “Dá pra ver que os animais são bem cuidados.”).</p>
+
+<h2 id="ingresso">18. Ingresso, demanda e reputação</h2>
+<div class="formula">atratividade = Σ_espécies visíveis [ atratividade × min(1,6; 0,6 + 0,2 × nº de indivíduos) ] + 3 × biomas + 1,5 × tipos de instalação conectados
+qualidade    = (0,55 + 0,45·bem-estar) × (0,70 + 0,30·limpeza) × (0,85 + 0,15·beleza)        [valores 0–1]
+preço justo  = máx(5; (8 + 0,22·atratividade + 0,25·reputação) × qualidade)
+r = ingresso ÷ preço justo
+fator preço  = 1 + 0,3·(1 − r)  se r ≤ 1;   máx(0,03; 1 − 1,15·(r − 1)) se r &gt; 1
+procura/dia  = (12 + 5,5·atratividade·(0,45 + reputação/100)) × qualidade × fator preço
+               × 1,3 (fim de semana) × (1 + bônus de evento) × 1,04 (com guias)</div>
+<p>O tamanho do zoológico aumenta o potencial, mas não garante ingressos caros: um parque grande e mal cuidado tem qualidade baixa e preço justo menor que um parque pequeno e bem administrado. Na entrada, ingressos acima de 130% do preço justo reduzem a felicidade; abaixo de 80% aumentam (+6).</p>
+<p>Simultaneidade máxima: <code>mín(450; máx(25; 2,5 × tiles de caminho))</code> pessoas — amplie os caminhos para receber mais gente.</p>
+<h3>Reputação (0–100, exibida em estrelas)</h3>
+<div class="formula">alvo = 0,30·bem-estar + 0,28·satisfação + 0,14·limpeza + 0,14·variedade + 0,14·beleza
+       (variedade = min(1, espécies visíveis ÷ 20) × 100)
+diariamente: reputação += (alvo − reputação) × 0,06 + 0,25·conservação + bônus de evento + 0,05 (com placa educativa)
+eventos pontuais: morte por negligência −3 · nascimento +0,3 · transferência para conservação +1,2</div>
+
+<h2 id="economia">19. Economia e finanças</h2>
+<div class="grid2">
+<div class="card"><h4>Receitas</h4>Ingressos · alimentação de visitantes (lanchonete, restaurante) · bebidas (quiosque, sorveteria) · lojas · estacionamento (R$ 10 por carro, 35% dos visitantes, 80 vagas/dia por estacionamento) · passeios guiados (R$ 4 por visitante atendido) · venda de animais · prêmios de etapa · reembolsos · empréstimos.</div>
+<div class="card"><h4>Despesas</h4>Construção, paisagismo, decoração · terreno · compra de animais · alimentação · salários · contratações e rescisões · manutenção (recintos R$ 0,50/tile + R$ 5; caminhos R$ 0,05/tile) · instalações · mercadorias vendidas · veterinária · mão de obra avulsa · eventos · parcelas de empréstimo.</div>
+</div>
+<ul>
+<li>Custos recorrentes são pagos à meia-noite. Cada <b>Administrador</b> reduz salários, manutenção e instalações em 4% (máx. 3 = 12%).</li>
+<li>O painel 💰 mostra saldo, receitas e despesas do dia por categoria, custos recorrentes, resumo dos últimos 30 dias e um gráfico (barras de receita/despesa e linha de saldo).</li>
+<li><b>Empréstimo:</b> R$ 25.000 na hora, 30 parcelas diárias de R$ 958 (total R$ 28.750), até 3 ativos.</li>
+<li><b>Falência (carreira):</b> após 20 dias consecutivos com saldo negativo. Alertas diários mostram quantos dias faltam; avisos também quando as despesas superam as receitas.</li>
+<li>Relatório mensal automático a cada 30 dias.</li>
+</ul>
+
+<h2 id="instalacoes">20. Instalações e decoração</h2>
+<h3>Instalações</h3>
+<div class="tablewrap"><!--BUILDINGS-->
+<table class="data"><thead><tr><th>Instalação</th><th>Tipo</th><th>Tamanho</th><th>Custo</th><th>Manut./dia</th><th>Atende</th><th>Venda</th><th>Custo merc.</th><th>Etapa</th><th>Descrição</th></tr></thead><tbody>
+<tr><td>🎟️ Entrada e bilheteria</td><td>fixo</td><td>4×2</td><td>R$ 0</td><td>R$ 20</td><td>—</td><td>—</td><td>—</td><td>1</td><td><small></small></td></tr>
+<tr><td>🍔 Lanchonete</td><td>visitante</td><td>2×2</td><td>R$ 3.500</td><td>R$ 35</td><td>fome</td><td>R$ 14</td><td>R$ 5</td><td>1</td><td><small>Sacia a fome dos visitantes. Receita por venda.</small></td></tr>
+<tr><td>🥤 Quiosque de bebidas</td><td>visitante</td><td>1×1</td><td>R$ 1.200</td><td>R$ 12</td><td>sede</td><td>R$ 6</td><td>R$ 2</td><td>1</td><td><small>Mata a sede. Pequeno e barato.</small></td></tr>
+<tr><td>🍦 Sorveteria</td><td>visitante</td><td>1×1</td><td>R$ 1.600</td><td>R$ 14</td><td>sede</td><td>R$ 9</td><td>R$ 3</td><td>2</td><td><small>Bebidas geladas e sorvetes.</small></td></tr>
+<tr><td>🍽️ Restaurante</td><td>visitante</td><td>3×3</td><td>R$ 12.000</td><td>R$ 90</td><td>fome</td><td>R$ 32</td><td>R$ 12</td><td>2</td><td><small>Refeições completas, alta satisfação.</small></td></tr>
+<tr><td>🚻 Banheiros</td><td>visitante</td><td>2×2</td><td>R$ 2.500</td><td>R$ 25</td><td>banheiro</td><td>—</td><td>—</td><td>1</td><td><small>Indispensável para o conforto dos visitantes.</small></td></tr>
+<tr><td>🪑 Banco</td><td>visitante</td><td>1×1</td><td>R$ 150</td><td>R$ 1</td><td>energia</td><td>—</td><td>—</td><td>1</td><td><small>Descanso. Coloque ao lado do caminho.</small></td></tr>
+<tr><td>🗑️ Lixeira</td><td>visitante</td><td>1×1</td><td>R$ 100</td><td>R$ 2</td><td>—</td><td>—</td><td>—</td><td>1</td><td><small>Reduz o lixo jogado no chão num raio de 6 tiles.</small></td></tr>
+<tr><td>🎁 Loja de lembranças</td><td>visitante</td><td>2×2</td><td>R$ 6.000</td><td>R$ 45</td><td>compras</td><td>R$ 28</td><td>R$ 11</td><td>1</td><td><small>Pelúcias, camisetas e lembranças.</small></td></tr>
+<tr><td>ℹ️ Ponto de informação</td><td>visitante</td><td>1×1</td><td>R$ 900</td><td>R$ 10</td><td>—</td><td>—</td><td>—</td><td>1</td><td><small>Mapas e orientação: +satisfação ao circular.</small></td></tr>
+<tr><td>🅿️ Estacionamento</td><td>visitante</td><td>4×3</td><td>R$ 8.000</td><td>R$ 30</td><td>—</td><td>R$ 10</td><td>—</td><td>2</td><td><small>R$ 10 por carro. 35% dos visitantes vêm de carro. 80 vagas/dia.</small></td></tr>
+<tr><td>📦 Depósito de alimentos</td><td>operacional</td><td>2×2</td><td>R$ 4.000</td><td>R$ 20</td><td>—</td><td>—</td><td>—</td><td>1</td><td><small>+800 unidades de capacidade de estoque.</small></td></tr>
+<tr><td>🏥 Clínica veterinária</td><td>operacional</td><td>3×2</td><td>R$ 15.000</td><td>R$ 80</td><td>—</td><td>—</td><td>—</td><td>3</td><td><small>Permite diagnóstico, tratamento e quarentena (6 vagas).</small></td></tr>
+<tr><td>☕ Sala dos funcionários</td><td>operacional</td><td>2×2</td><td>R$ 5.000</td><td>R$ 30</td><td>—</td><td>—</td><td>—</td><td>2</td><td><small>+10% de eficiência da equipe (máx. 2).</small></td></tr>
+<tr><td>🔬 Centro de conservação</td><td>operacional</td><td>3×3</td><td>R$ 40.000</td><td>R$ 150</td><td>—</td><td>—</td><td>—</td><td>4</td><td><small>Programas de conservação: +reputação diária e +10% reprodução.</small></td></tr>
+</tbody></table>
+<!--/BUILDINGS--></div>
+<p>Instalações desconectadas mostram o selo <b>⛔ sem acesso</b> no mapa. Lanchonete e restaurante também matam a sede. Clínica e centro de conservação precisam de conexão para funcionar.</p>
+<h3>Vegetação e decoração</h3>
+<div class="tablewrap"><!--DECOS-->
+<table class="data"><thead><tr><th>Item</th><th>Custo</th><th>Tipo</th><th>Biomas</th><th>Função</th><th>Beleza</th><th>Física</th><th>Etapa</th></tr></thead><tbody>
+<tr><td>Arbusto</td><td>R$ 40</td><td>Vegetação</td><td>África — Savana, Brasil — Floresta e Cerrado, Manguezal e Pantanal, Ásia — Florestas tropicais, Região árida e desértica</td><td>—</td><td>+2</td><td>atravessável</td><td>1</td></tr>
+<tr><td>Capim alto</td><td>R$ 20</td><td>Vegetação</td><td>África — Savana</td><td>—</td><td>+1</td><td>atravessável</td><td>1</td></tr>
+<tr><td>Acácia</td><td>R$ 120</td><td>Vegetação</td><td>África — Savana</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>1</td></tr>
+<tr><td>Baobá</td><td>R$ 260</td><td>Vegetação</td><td>África — Savana</td><td>—</td><td>+6</td><td>copa (desenhada acima dos animais)</td><td>1</td></tr>
+<tr><td>Árvore tropical</td><td>R$ 140</td><td>Vegetação</td><td>Brasil — Floresta e Cerrado, Ásia — Florestas tropicais, Manguezal e Pantanal</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>1</td></tr>
+<tr><td>Palmeira</td><td>R$ 110</td><td>Vegetação</td><td>Brasil — Floresta e Cerrado, Manguezal e Pantanal, Região árida e desértica</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>1</td></tr>
+<tr><td>Ipê-amarelo</td><td>R$ 160</td><td>Vegetação</td><td>Brasil — Floresta e Cerrado</td><td>—</td><td>+6</td><td>copa (desenhada acima dos animais)</td><td>1</td></tr>
+<tr><td>Bromélias</td><td>R$ 50</td><td>Vegetação</td><td>Brasil — Floresta e Cerrado</td><td>—</td><td>+3</td><td>atravessável</td><td>1</td></tr>
+<tr><td>Mangue</td><td>R$ 120</td><td>Vegetação</td><td>Manguezal e Pantanal</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>2</td></tr>
+<tr><td>Aguapés</td><td>R$ 40</td><td>Vegetação</td><td>Manguezal e Pantanal</td><td>sobre a água</td><td>+3</td><td>atravessável</td><td>2</td></tr>
+<tr><td>Cacto</td><td>R$ 60</td><td>Vegetação</td><td>Região árida e desértica</td><td>—</td><td>+3</td><td>obstáculo sólido</td><td>2</td></tr>
+<tr><td>Arbusto seco</td><td>R$ 30</td><td>Vegetação</td><td>Região árida e desértica</td><td>—</td><td>+1</td><td>atravessável</td><td>2</td></tr>
+<tr><td>Bambuzal</td><td>R$ 90</td><td>Vegetação</td><td>Ásia — Florestas tropicais</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>3</td></tr>
+<tr><td>Samambaia</td><td>R$ 45</td><td>Vegetação</td><td>Ásia — Florestas tropicais, Brasil — Floresta e Cerrado</td><td>—</td><td>+3</td><td>atravessável</td><td>3</td></tr>
+<tr><td>Pinheiro nevado</td><td>R$ 130</td><td>Vegetação</td><td>Região polar</td><td>—</td><td>+4</td><td>copa (desenhada acima dos animais)</td><td>4</td></tr>
+<tr><td>Árvore mística</td><td>R$ 600</td><td>Vegetação</td><td>Área fantástica</td><td>—</td><td>+10</td><td>copa (desenhada acima dos animais)</td><td>5</td></tr>
+<tr><td>Cristal arcano</td><td>R$ 500</td><td>Vegetação</td><td>Área fantástica</td><td>enriquecimento</td><td>+8</td><td>obstáculo sólido</td><td>5</td></tr>
+<tr><td>Canteiro de flores</td><td>R$ 35</td><td>Decoração</td><td>—</td><td>—</td><td>+4</td><td>atravessável</td><td>1</td></tr>
+<tr><td>Pedra</td><td>R$ 50</td><td>Decoração</td><td>—</td><td>—</td><td>+2</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Tronco caído</td><td>R$ 45</td><td>Decoração</td><td>—</td><td>—</td><td>+2</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Abrigo para animais</td><td>R$ 600</td><td>Decoração</td><td>—</td><td>abrigo</td><td>+1</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Bebedouro animal</td><td>R$ 250</td><td>Decoração</td><td>—</td><td>fonte de água</td><td>+0</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Estrutura de escalada</td><td>R$ 450</td><td>Decoração</td><td>—</td><td>enriquecimento</td><td>+1</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Cupinzeiro</td><td>R$ 120</td><td>Decoração</td><td>—</td><td>enriquecimento</td><td>+1</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Bloco de gelo</td><td>R$ 200</td><td>Decoração</td><td>—</td><td>enriquecimento</td><td>+2</td><td>obstáculo sólido</td><td>4</td></tr>
+<tr><td>Estátua de animal</td><td>R$ 900</td><td>Decoração</td><td>—</td><td>só fora de recintos</td><td>+12</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Chafariz</td><td>R$ 1.500</td><td>Decoração</td><td>—</td><td>só fora de recintos</td><td>+16</td><td>obstáculo sólido</td><td>2</td></tr>
+<tr><td>Poste de luz</td><td>R$ 120</td><td>Decoração</td><td>—</td><td>iluminação, só fora de recintos</td><td>+2</td><td>obstáculo sólido</td><td>1</td></tr>
+<tr><td>Placa educativa</td><td>R$ 150</td><td>Decoração</td><td>—</td><td>educativo, só fora de recintos</td><td>+2</td><td>obstáculo sólido</td><td>1</td></tr>
+</tbody></table>
+<!--/DECOS--></div>
+<p><b>Beleza</b>: para cada tile de caminho, soma-se a beleza dos objetos num raio de 2 tiles (instalações +1, água +0,6), limitada a 30; a média normalizada vira o indicador “Beleza do parque”.</p>
+
+<h2 id="progressao">21. Progressão, etapas e eventos</h2>
+<div class="tablewrap"><!--STAGES-->
+<table class="data"><thead><tr><th>Etapa</th><th>Nome</th><th>Requisitos</th><th>Prêmio</th><th>O que libera</th></tr></thead><tbody>
+<tr><td>1</td><td><b>Pequeno zoológico</b></td><td>Início do jogo</td><td>—</td><td>Terreno limitado, poucas espécies e operação simplificada.</td></tr>
+<tr><td>2</td><td><b>Expansão</b></td><td>Reputação ≥ 25<br>Espécies diferentes ≥ 4<br>Visitantes recebidos ≥ 400</td><td>R$ 15.000</td><td>Novos biomas (Pantanal e Deserto), mais espécies, restaurantes e biólogos.</td></tr>
+<tr><td>3</td><td><b>Gestão completa</b></td><td>Reputação ≥ 42<br>Espécies diferentes ≥ 8<br>Animais ≥ 30</td><td>R$ 30.000</td><td>Ásia, clínica veterinária, veterinários, doenças e quarentena.</td></tr>
+<tr><td>4</td><td><b>Grande zoológico</b></td><td>Reputação ≥ 60<br>Espécies diferentes ≥ 14<br>Satisfação ≥ 62<br>Lotes de terreno ≥ 13</td><td>R$ 60.000</td><td>Região polar, espécies raras, guias, eventos e conservação.</td></tr>
+<tr><td>5</td><td><b>Conteúdo fantástico</b></td><td>Reputação ≥ 78<br>Espécies diferentes ≥ 20<br>Bem-estar médio ≥ 70<br>Saldo ≥ R$ 250.000</td><td>R$ 120.000</td><td>Área mística com unicórnios, grifos, fênix e dragões.</td></tr>
+</tbody></table>
+<!--/STAGES--></div>
+<p>Os requisitos são verificados diariamente. Ao avançar, você recebe o prêmio, o mercado é renovado com as novas espécies e uma janela de comemoração é exibida. O painel 🏆 mostra as barras de progresso de cada requisito e as espécies liberadas por etapa.</p>
+<h3>Eventos temáticos (Etapa 4)</h3>
+<div class="tablewrap"><!--EVENTS-->
+<table class="data"><thead><tr><th>Evento</th><th>Custo</th><th>Duração</th><th>Procura extra</th><th>Requisito</th></tr></thead><tbody>
+<tr><td>🌙 Noite no Zoológico</td><td>R$ 6.000</td><td>3 dias</td><td>+45%</td><td>Etapa 4</td></tr>
+<tr><td>🐆 Semana dos Felinos</td><td>R$ 5.000</td><td>5 dias</td><td>+30%</td><td>Etapa 4 + uma destas espécies: Leão, Onça-pintada, Tigre</td></tr>
+<tr><td>🦜 Festival de Aves</td><td>R$ 4.000</td><td>4 dias</td><td>+30%</td><td>Etapa 4 + uma destas espécies: Tucano, Arara-vermelha, Tuiuiú, Avestruz, Pinguim</td></tr>
+<tr><td>🎒 Semana Escolar</td><td>R$ 3.000</td><td>5 dias</td><td>+25%</td><td>Etapa 4</td></tr>
+</tbody></table>
+<!--/EVENTS--></div>
+
+<h2 id="notificacoes">22. Notificações e leitura do parque</h2>
+<p>Notificações aparecem no canto inferior esquerdo (somem sozinhas; alertas graves ficam mais tempo) e ficam registradas no painel 🔔. <b>Clicar leva ao local</b>: centraliza a câmera no recinto/animal e abre o painel correspondente.</p>
+<table><tr><th>Tipo</th><th>Exemplos</th></tr>
+<tr><td>⚠️ Atenção</td><td>Próximo da capacidade · Capacidade atingida · Limpeza atrasada · Estoque esgotado/baixo · Tratadores/veterinários sobrecarregados · Despesas maiores que receitas</td></tr>
+<tr><td>🚨 Perigo</td><td>Animal em estado crítico · Possível surto · Sem estrutura veterinária · Saldo negativo</td></tr>
+<tr><td>💬 Equipe</td><td>Mensagens narrativas de tratadores, veterinários e biólogos</td></tr>
+<tr><td>🐣 / 🕊️</td><td>Nascimentos · Falecimentos</td></tr>
+<tr><td>✅ / ℹ️</td><td>Etapa alcançada · Tratamento concluído · Relatório mensal · Evento encerrado</td></tr></table>
+<p>Ícones sobre os recintos sinalizam problemas à distância: 🍖 fome · 🧹 sujeira · 🤒 doença · ⚠️ superlotação. Sobre animais (zoom &gt; 0,9): 🤒 doente · 🍖 com fome · 🤰 gestante. As mensagens narrativas complementam — não substituem — os indicadores objetivos.</p>
+
+<h2 id="fisica">23. Física e movimento</h2>
+<p>Faunópolis usa uma física 2D leve e determinística por tile, suficiente para dar vida ao parque sem custo de desempenho.</p>
+<h3>Animais</h3>
+<ul>
+<li><b>Espaço contínuo sobre grade discreta:</b> a posição é contínua (em tiles, ponto flutuante); a colisão é testada contra a grade.</li>
+<li><b>Tiles válidos:</b> pertencem ao recinto do animal; água apenas para nadadores; objetos sólidos (pedra, tronco, abrigo, bebedouro, estruturas, cupinzeiro, gelo, cacto, cristal) bloqueiam. Árvores (copas) não bloqueiam — o animal passa “por baixo” e a copa é desenhada por cima.</li>
+<li><b>Velocidade:</b> <code>vel. da espécie × 0,55 tiles/s</code> (×0,8 filhotes, ×0,5 com saúde &lt; 40), multiplicada pela velocidade do jogo.</li>
+<li><b>Caminhada aleatória suavizada:</b> a direção varia ±1,2 rad/s. Antes de mover, um teste de <i>olhar à frente</i> (distância 0,35 + comprimento/64 tiles) detecta cerca, água ou obstáculo e o animal gira entre 90° e 234°.</li>
+<li><b>Subpassos:</b> o deslocamento é dividido em passos de no máximo 0,25 tile, evitando atravessar cercas mesmo em 8×.</li>
+<li><b>Separação (colisão macia):</b> pares no mesmo recinto mais próximos que <code>0,7 × (Lₐ + L_b)/64</code> são afastados em 25% da sobreposição por quadro, se a nova posição for válida.</li>
+<li><b>Máquina de estados:</b> andar (62%) ou parar, com temporizadores aleatórios; à noite 80% dormem; doentes ou fracos ficam mais parados.</li>
+<li><b>Correção de posição:</b> se o recinto for reduzido ou o terreno mudar, animais em tiles inválidos são reposicionados num tile válido.</li>
+<li><b>Animação:</b> 2 quadros de passada alternados pela distância percorrida; leve oscilação de escala (respiração/passada); rotação na direção do movimento; nadando: 78% de opacidade e ondulação; aves voando: elevação de 5 px com sombra deslocada; dormindo: “z”.</li>
+</ul>
+<h3>Pessoas</h3>
+<ul>
+<li>Visitantes andam a 1,5 tile/s (crianças 10% mais rápidas) de centro a centro de tile ao longo do caminho calculado por BFS, com um deslocamento lateral individual (±0,22) para não andarem em fila perfeita.</li>
+<li>Se um caminho é demolido sob um visitante, ele recalcula a rota ou é reposicionado no caminho alcançável mais próximo.</li>
+<li>Funcionários andam a 1,3 tile/s até tiles de observação de recintos ou portas de instalações.</li>
+</ul>
+
+<h2 id="render">24. Renderização e câmera</h2>
+<ul>
+<li>Canvas 2D em tela cheia, ajustado ao <code>devicePixelRatio</code> (até 2×). Câmera com zoom de 0,4× a 2,6× centrado no cursor; movimento por teclado a 520 px/s ÷ zoom.</li>
+<li><b>Culling:</b> apenas tiles e objetos visíveis (com margem de 1 tile) são desenhados.</li>
+<li><b>Ordem das camadas:</b> terreno → brilho e margens da água → estrada → caminhos (textura de pedras + bordas) → lixo → sujeira e lentes dos recintos → cercas (sombra, contorno, madeira e postes) → objetos baixos e instalações (ordenados por Y) → animais (por Y, com sombra) → visitantes e funcionários → copas das árvores → terreno não adquirido → limite do terreno → noite e luzes (composição aditiva) → selos e nomes dos recintos → bolhas e partículas → seleção e prévia da ferramenta.</li>
+<li>Minimapa redesenhado a cada 0,5 s (1 pixel ≈ 3 px por tile) com o retângulo da câmera em tempo real.</li>
+</ul>
+
+<h2 id="sprites">25. Sprites e assets</h2>
+<div class="box gold"><b>100% procedural.</b> Todos os gráficos do jogo (terrenos, animais, vegetação, instalações, pessoas, ícones) são desenhados por código em Canvas 2D e guardados em cache. Não há imagens externas: o jogo funciona offline, pesa poucos KB e todos os sprites podem ser ajustados editando parâmetros em <code>js/config.js</code> e <code>js/sprites.js</code>.</div>
+<h3>Pipeline</h3>
+<ol>
+<li><b>Geração:</b> cada sprite é desenhado uma única vez num canvas fora da tela, em <b>resolução 2×</b> (2 px por px de mundo), para ficar nítido com zoom.</li>
+<li><b>Cache:</b> chave por tipo + variante (ex.: <code>a_leao_M_1</code> = leão macho, quadro 1). Terrenos têm 4 variantes por tipo, escolhidas por hash da posição (sem padrão repetitivo visível).</li>
+<li><b>Desenho:</b> o sprite em cache é desenhado com translação, rotação e escala (filhotes 58%).</li>
+<li><b>Ícones da interface:</b> gerados a partir dos mesmos sprites (<code>Sprites.iconURL</code>) e convertidos em imagens.</li>
+</ol>
+<h3>Arquétipos de animais (vista superior, olhando para +x)</h3>
+<table><tr><th>Arquétipo</th><th>Construção</th><th>Espécies</th></tr>
+<tr><td><code>quad</code></td><td>Corpo elíptico, 4 patas animadas, cauda (fina, peluda ou anelada), pescoço opcional, cabeça com focinho, orelhas, olhos e nariz; padrões recortados no corpo (listras, manchas, rosetas, faixas, faixa diagonal, peito claro); extras: juba (só machos), crina, chifres, chifre frontal, chifre espiral, corcovas</td><td>Zebra, suricato, girafa, leão, rinoceronte, capivara, tamanduá, lobo-guará, onça, anta, ariranha, raposa-do-deserto, camelo, tigre, panda-vermelho, urso-polar, raposa-do-ártico, unicórnio</td></tr>
+<tr><td><code>elefante</code></td><td>Corpo com rugas, orelhas grandes, tromba curva animada, presas</td><td>Elefante-africano</td></tr>
+<tr><td><code>reptil</code></td><td>Corpo baixo com escamas dorsais, cauda longa ondulante, patas abertas, focinho longo, olhos amarelos</td><td>Jacaré</td></tr>
+<tr><td><code>ave</code></td><td>Cauda em leque, corpo, asas laterais (abrem no quadro 2), pescoço/colar, bico (tamanho e cor), auréola de fogo opcional</td><td>Avestruz, tucano, arara, tuiuiú, fênix</td></tr>
+<tr><td><code>pinguim</code></td><td>Corpo escuro, ventre claro, nadadeiras, pés laranja, bico</td><td>Pinguim</td></tr>
+<tr><td><code>casco</code></td><td>Casco com hexágonos, cabeça e patas curtas</td><td>Jabuti</td></tr>
+<tr><td><code>primata</code></td><td>Corpo arredondado, braços longos alternados, rosto claro</td><td>Gibão, orangotango</td></tr>
+<tr><td><code>grifo</code></td><td>Corpo de leão, asas com penas, cabeça de águia e bico</td><td>Grifo</td></tr>
+<tr><td><code>dragao</code></td><td>Asas de membrana com ossos, espinhos dorsais, cauda com ponta, chifres, olhos dourados</td><td>Dragão</td></tr></table>
+<h3>Parâmetros visuais por espécie</h3>
+<div class="tablewrap"><!--SPRITES-->
+<table class="data"><thead><tr><th>Espécie</th><th>Arquétipo</th><th>Compr. (px)</th><th>Largura (px)</th><th>Cor principal</th><th>Cor secundária</th><th>Parâmetros extras</th></tr></thead><tbody>
+<tr><td>Zebra</td><td>quad</td><td>30</td><td>13</td><td><span class="sw" style="background:#f4f4f2"></span> #f4f4f2</td><td><span class="sw" style="background:#222"></span> #222</td><td><small>padrao=listras, cab=7, cauda=9, crina <span class="sw" style="background:#222"></span></small></td></tr>
+<tr><td>Avestruz</td><td>ave</td><td>18</td><td>14</td><td><span class="sw" style="background:#3a3330"></span> #3a3330</td><td><span class="sw" style="background:#f1ece4"></span> #f1ece4</td><td><small>bico <span class="sw" style="background:#e0b089"></span>, pescoco=12, cab=4, asas <span class="sw" style="background:#2a2420"></span>, cauda <span class="sw" style="background:#f6f2ea"></span></small></td></tr>
+<tr><td>Suricato</td><td>quad</td><td>11</td><td>5</td><td><span class="sw" style="background:#c9a87a"></span> #c9a87a</td><td><span class="sw" style="background:#6b5238"></span> #6b5238</td><td><small>padrao=faixas, cab=3.2, cauda=7, olhos <span class="sw" style="background:#3a2a1a"></span></small></td></tr>
+<tr><td>Girafa</td><td>quad</td><td>30</td><td>13</td><td><span class="sw" style="background:#e8b45a"></span> #e8b45a</td><td><span class="sw" style="background:#8a4f22"></span> #8a4f22</td><td><small>padrao=manchas, cab=5, cauda=9, pescoco=20, chifres=true</small></td></tr>
+<tr><td>Leão</td><td>quad</td><td>30</td><td>13</td><td><span class="sw" style="background:#d9a856"></span> #d9a856</td><td><span class="sw" style="background:#b8863c"></span> #b8863c</td><td><small>padrao=nenhum, cab=7, cauda=12, juba <span class="sw" style="background:#8a5420"></span></small></td></tr>
+<tr><td>Elefante-africano</td><td>elefante</td><td>42</td><td>26</td><td><span class="sw" style="background:#8d8a86"></span> #8d8a86</td><td><span class="sw" style="background:#6f6c68"></span> #6f6c68</td><td><small>cab=11, cauda=6</small></td></tr>
+<tr><td>Rinoceronte</td><td>quad</td><td>38</td><td>20</td><td><span class="sw" style="background:#9a958c"></span> #9a958c</td><td><span class="sw" style="background:#7e7a72"></span> #7e7a72</td><td><small>padrao=nenhum, cab=9, cauda=5, chifre <span class="sw" style="background:#e8e2d0"></span></small></td></tr>
+<tr><td>Capivara</td><td>quad</td><td>18</td><td>11</td><td><span class="sw" style="background:#8a6a45"></span> #8a6a45</td><td><span class="sw" style="background:#6f5235"></span> #6f5235</td><td><small>padrao=nenhum, cab=5.5, cauda=0</small></td></tr>
+<tr><td>Tucano</td><td>ave</td><td>11</td><td>7</td><td><span class="sw" style="background:#1b1b1b"></span> #1b1b1b</td><td><span class="sw" style="background:#fbf3d0"></span> #fbf3d0</td><td><small>bico <span class="sw" style="background:#ff9d1c"></span>, bicoL=7, cab=3.2, asas <span class="sw" style="background:#111"></span>, cauda <span class="sw" style="background:#111"></span></small></td></tr>
+<tr><td>Arara-vermelha</td><td>ave</td><td>13</td><td>7</td><td><span class="sw" style="background:#d62828"></span> #d62828</td><td><span class="sw" style="background:#f7c948"></span> #f7c948</td><td><small>bico <span class="sw" style="background:#e8e0d0"></span>, bicoL=3, cab=3.4, asas <span class="sw" style="background:#1d6fd1"></span>, cauda <span class="sw" style="background:#d62828"></span></small></td></tr>
+<tr><td>Tamanduá-bandeira</td><td>quad</td><td>22</td><td>9</td><td><span class="sw" style="background:#5b5148"></span> #5b5148</td><td><span class="sw" style="background:#1f1a16"></span> #1f1a16</td><td><small>padrao=faixa, cab=3, focinho=8, cauda=13, caudaPeluda=true</small></td></tr>
+<tr><td>Lobo-guará</td><td>quad</td><td>22</td><td>8</td><td><span class="sw" style="background:#d9672b"></span> #d9672b</td><td><span class="sw" style="background:#2b2018"></span> #2b2018</td><td><small>padrao=nenhum, cab=4.5, focinho=3, cauda=10, orelhas=4, crina <span class="sw" style="background:#2b2018"></span></small></td></tr>
+<tr><td>Onça-pintada</td><td>quad</td><td>28</td><td>12</td><td><span class="sw" style="background:#e3a740"></span> #e3a740</td><td><span class="sw" style="background:#2a1c10"></span> #2a1c10</td><td><small>padrao=rosetas, cab=6, cauda=13</small></td></tr>
+<tr><td>Anta</td><td>quad</td><td>26</td><td>13</td><td><span class="sw" style="background:#4a3f38"></span> #4a3f38</td><td><span class="sw" style="background:#3a312b"></span> #3a312b</td><td><small>padrao=nenhum, cab=6, focinho=3, cauda=2</small></td></tr>
+<tr><td>Jacaré-do-pantanal</td><td>reptil</td><td>34</td><td>9</td><td><span class="sw" style="background:#4f5d36"></span> #4f5d36</td><td><span class="sw" style="background:#3a4527"></span> #3a4527</td><td><small>cab=4, focinho=9, cauda=18</small></td></tr>
+<tr><td>Ariranha</td><td>quad</td><td>20</td><td>7</td><td><span class="sw" style="background:#5a3d26"></span> #5a3d26</td><td><span class="sw" style="background:#e9dcc4"></span> #e9dcc4</td><td><small>padrao=peito, cab=4, cauda=9</small></td></tr>
+<tr><td>Tuiuiú</td><td>ave</td><td>16</td><td>10</td><td><span class="sw" style="background:#fafafa"></span> #fafafa</td><td><span class="sw" style="background:#222"></span> #222</td><td><small>bico <span class="sw" style="background:#1a1a1a"></span>, bicoL=9, pescoco=5, colar <span class="sw" style="background:#d42a2a"></span>, cab=3.5, asas <span class="sw" style="background:#f2f2f2"></span>, cauda <span class="sw" style="background:#eee"></span></small></td></tr>
+<tr><td>Raposa-do-deserto</td><td>quad</td><td>13</td><td>6</td><td><span class="sw" style="background:#f0d6a4"></span> #f0d6a4</td><td><span class="sw" style="background:#d8b77c"></span> #d8b77c</td><td><small>padrao=nenhum, cab=3.6, focinho=2, cauda=8, orelhas=5, caudaPeluda=true</small></td></tr>
+<tr><td>Camelo</td><td>quad</td><td>32</td><td>12</td><td><span class="sw" style="background:#c69a62"></span> #c69a62</td><td><span class="sw" style="background:#a97f4b"></span> #a97f4b</td><td><small>padrao=nenhum, cab=5, cauda=6, pescoco=9, corcova=2</small></td></tr>
+<tr><td>Jabuti</td><td>casco</td><td>15</td><td>12</td><td><span class="sw" style="background:#6d5a2e"></span> #6d5a2e</td><td><span class="sw" style="background:#c49a3c"></span> #c49a3c</td><td><small>cab=3</small></td></tr>
+<tr><td>Tigre</td><td>quad</td><td>32</td><td>13</td><td><span class="sw" style="background:#e8812a"></span> #e8812a</td><td><span class="sw" style="background:#1c1410"></span> #1c1410</td><td><small>padrao=listras, cab=7, cauda=13</small></td></tr>
+<tr><td>Panda-vermelho</td><td>quad</td><td>15</td><td>8</td><td><span class="sw" style="background:#c2491d"></span> #c2491d</td><td><span class="sw" style="background:#2b1a12"></span> #2b1a12</td><td><small>padrao=nenhum, cab=4.5, cauda=11, caudaAneis <span class="sw" style="background:#f1d9b5"></span>, orelhas=3, caudaPeluda=true</small></td></tr>
+<tr><td>Gibão</td><td>primata</td><td>12</td><td>9</td><td><span class="sw" style="background:#3b2f28"></span> #3b2f28</td><td><span class="sw" style="background:#d8c6a8"></span> #d8c6a8</td><td><small>cab=4, bracos=11</small></td></tr>
+<tr><td>Orangotango</td><td>primata</td><td>20</td><td>15</td><td><span class="sw" style="background:#b8561e"></span> #b8561e</td><td><span class="sw" style="background:#e3a47a"></span> #e3a47a</td><td><small>cab=6, bracos=14</small></td></tr>
+<tr><td>Pinguim</td><td>pinguim</td><td>12</td><td>9</td><td><span class="sw" style="background:#1d2229"></span> #1d2229</td><td><span class="sw" style="background:#f7f7f7"></span> #f7f7f7</td><td><small>bico <span class="sw" style="background:#f39c12"></span>, cab=4</small></td></tr>
+<tr><td>Urso-polar</td><td>quad</td><td>34</td><td>17</td><td><span class="sw" style="background:#f5f2e8"></span> #f5f2e8</td><td><span class="sw" style="background:#e3ddcc"></span> #e3ddcc</td><td><small>padrao=nenhum, cab=7, focinho=3, cauda=2, orelhas=2.5</small></td></tr>
+<tr><td>Raposa-do-ártico</td><td>quad</td><td>15</td><td>7</td><td><span class="sw" style="background:#fbfbfb"></span> #fbfbfb</td><td><span class="sw" style="background:#e2e6ea"></span> #e2e6ea</td><td><small>padrao=nenhum, cab=4, focinho=2, cauda=10, orelhas=2.5, caudaPeluda=true</small></td></tr>
+<tr><td>Unicórnio</td><td>quad</td><td>30</td><td>12</td><td><span class="sw" style="background:#fbf7ff"></span> #fbf7ff</td><td><span class="sw" style="background:#e9dcff"></span> #e9dcff</td><td><small>padrao=nenhum, cab=6, cauda=11, crina <span class="sw" style="background:#f49ac1"></span>, chifreEspiral <span class="sw" style="background:#f7d774"></span>, caudaPeluda=true</small></td></tr>
+<tr><td>Grifo</td><td>grifo</td><td>32</td><td>13</td><td><span class="sw" style="background:#c9a25c"></span> #c9a25c</td><td><span class="sw" style="background:#f3efe6"></span> #f3efe6</td><td><small>cab=5, cauda=11, asas <span class="sw" style="background:#8a6a3a"></span>, bico <span class="sw" style="background:#f2c14e"></span></small></td></tr>
+<tr><td>Dragão</td><td>dragao</td><td>52</td><td>16</td><td><span class="sw" style="background:#2f8f5b"></span> #2f8f5b</td><td><span class="sw" style="background:#e6c45a"></span> #e6c45a</td><td><small>cab=7, focinho=6, cauda=28, asas <span class="sw" style="background:#1e6a42"></span></small></td></tr>
+<tr><td>Fênix</td><td>ave</td><td>18</td><td>10</td><td><span class="sw" style="background:#ff6a1a"></span> #ff6a1a</td><td><span class="sw" style="background:#ffd23f"></span> #ffd23f</td><td><small>bico <span class="sw" style="background:#ffe08a"></span>, bicoL=3, cab=4, asas <span class="sw" style="background:#e8361c"></span>, cauda <span class="sw" style="background:#ffb627"></span>, fogo=true</small></td></tr>
+</tbody></table>
+<!--/SPRITES--></div>
+<h3>Outros sprites</h3>
+<ul>
+<li><b>Vegetação/decoração:</b> 29 desenhos de 2×2 tiles (64×64 px) centrados no tile, com sombra; 3 variantes aleatórias cada.</li>
+<li><b>Instalações:</b> telhados arredondados na cor da instalação, cumeeira, brilho, ícone em selo branco; toldos listrados em quiosques; entrada com pórtico e placa “FAUNÓPOLIS”; estacionamento com vagas e carros; clínica com cruz vermelha; banco e lixeira desenhados em detalhe.</li>
+<li><b>Pessoas:</b> visitantes desenhados em tempo real (ombros na cor da camisa, cabeça na cor da pele, cabelo, pernas alternadas); 6 tons de pele, 10 cores de camisa, 7 de cabelo, 25% crianças. Funcionários usam o uniforme da função (tratador verde, limpeza azul, veterinário coral, biólogo roxo, administrador cinza, guia dourado).</li>
+<li><b>Caminho:</b> textura de pedras 32×32 com bordas automáticas onde não há vizinho.</li>
+</ul>
+<h3>Arquivos de assets</h3>
+<table><tr><th>Arquivo</th><th>Conteúdo</th></tr>
+<tr><td><code>assets/brand/logo-principal.svg</code></td><td>Logo horizontal (fundos claros)</td></tr>
+<tr><td><code>assets/brand/logo-negativo.svg</code></td><td>Logo horizontal (fundos escuros) — usada no menu</td></tr>
+<tr><td><code>assets/brand/logo-vertical.svg</code></td><td>Logo empilhada</td></tr>
+<tr><td><code>assets/brand/logo-simbolo.svg</code></td><td>Símbolo isolado — barra superior</td></tr>
+<tr><td><code>assets/brand/logo-mono-escuro.svg</code> / <code>logo-mono-branco.svg</code></td><td>Versões monocromáticas</td></tr>
+<tr><td><code>assets/favicon.svg</code></td><td>Ícone da aba</td></tr>
+<tr><td><code>galeria-de-sprites.html</code></td><td>Visualizador de todos os sprites gerados pelo motor</td></tr></table>
+
+<h2 id="audio">26. Áudio</h2>
+<p>Efeitos sonoros sintetizados em tempo real com a Web Audio API (osciladores e ruído filtrado), sem arquivos: clique, abrir painel, construir, caminho, erro, dinheiro, compra, nascimento (arpejo), alerta, falecimento, nova etapa (fanfarra) e demolição. Volume e silenciar no menu ☰. O navegador só libera o áudio após a primeira interação.</p>
+
+<h2 id="save">27. Salvamento</h2>
+<ul>
+<li><b>Automático:</b> a cada 3 dias de jogo, ao sair para o menu e ao fechar a aba.</li>
+<li><b>Manual:</b> 3 espaços (menu ☰ → Salvar) e salvamento rápido <kbd>F5</kbd> (espaço automático).</li>
+<li><b>Exportar/Importar:</b> arquivo <code>.faunopolis</code> (JSON) para backup ou para levar o jogo a outro computador/navegador.</li>
+<li>Os salvamentos ficam no <code>localStorage</code> do navegador, separados por navegador e por endereço (abrir pelo arquivo ou por um servidor local são “endereços” diferentes).</li>
+<li>Visitantes em trânsito não são salvos; ao carregar, o dia continua com novos visitantes.</li>
+</ul>
+
+<h2 id="arquitetura">28. Arquitetura técnica</h2>
+<p>HTML5 + CSS + JavaScript puro (ES2020), sem dependências, sem etapa de compilação. Scripts clássicos sob o namespace global <code>FP</code> (funciona abrindo <code>index.html</code> direto do disco). Fontes Fredoka e Nunito via Google Fonts, com fontes do sistema como alternativa offline.</p>
+<table><tr><th>Módulo</th><th>Responsabilidade</th></tr>
+<tr><td><code>config.js</code></td><td>Constantes, terrenos, biomas, alimentos, 31 espécies, decoração, instalações, funcionários, doenças, etapas, eventos, nomes</td></tr>
+<tr><td><code>util.js</code></td><td>Matemática, RNG com semente, hash, ruído de valor, formatação de moeda e datas</td></tr>
+<tr><td><code>sprites.js</code></td><td>Desenho procedural e cache de todos os sprites e ícones</td></tr>
+<tr><td><code>audio.js</code></td><td>Síntese de efeitos sonoros</td></tr>
+<tr><td><code>world.js</code></td><td>Estado do jogo, geração do mapa, lotes, objetos, caminhos, recintos, habitat, capacidade, compatibilidade, rede de circulação, BFS e beleza</td></tr>
+<tr><td><code>animals.js</code></td><td>Entidades animais, física de movimento, simulação horária/diária, reprodução, envelhecimento, morte e valor de venda</td></tr>
+<tr><td><code>staff.js</code></td><td>Funcionários, rodadas de alimentação, limpeza, doenças, detecção, tratamento e quarentena</td></tr>
+<tr><td><code>economy.js</code></td><td>Livro-caixa, custos, atratividade, preço justo, demanda, reputação, estoque, empréstimos, eventos, etapas e mercado</td></tr>
+<tr><td><code>visitors.js</code></td><td>Agentes visitantes (IA, necessidades, consumo, lixo, comentários) e caminhada dos funcionários</td></tr>
+<tr><td><code>render.js</code></td><td>Câmera, camadas de desenho, noite, lentes, rótulos, minimapa</td></tr>
+<tr><td><code>input.js</code></td><td>Mouse, teclado, toque, ferramentas e prévias</td></tr>
+<tr><td><code>sim.js</code></td><td>Relógio: quadro → hora → dia</td></tr>
+<tr><td><code>save.js</code></td><td>Serialização (inclui arrays tipados), localStorage, exportação/importação</td></tr>
+<tr><td><code>ui.js</code></td><td>Menu, HUD, paletas, tooltip, painéis, notificações, modais e ações</td></tr>
+<tr><td><code>main.js</code></td><td>Inicialização e laço <code>requestAnimationFrame</code> (dt limitado a 0,1 s)</td></tr></table>
+<h3>Estruturas de dados do mapa</h3>
+<p>Arrays tipados de tamanho 72×56: <code>ground</code> (Uint8, terreno), <code>owned</code>, <code>path</code>, <code>road</code>, <code>litter</code> (Uint8), <code>enc</code> (Int16, id do recinto ou −1) e <code>obj</code> (Int32, id do objeto ou −1). Recintos guardam a lista de tiles, limites, centro, tiles de observação e um cache de estatísticas de habitat invalidado por edições.</p>
+<h3>Ferramenta de documentação</h3>
+<p><code>node tools/gerar-tabelas.js</code> regenera todas as tabelas de dados deste manual a partir de <code>js/config.js</code>, mantendo documentação e balanceamento sincronizados.</p>
+
+<h2 id="requisitos">29. Mapa de requisitos funcionais</h2>
+<table><tr><th>ID</th><th>Requisito (GDD)</th><th>Implementação</th></tr>
+<tr><td>RF-01</td><td>Exibir o zoológico em visão 2D superior</td><td>render.js — Canvas 2D top-down com câmera e zoom</td></tr>
+<tr><td>RF-02</td><td>Construir recintos</td><td>Ferramenta 🧱 (retângulo, mín. 3×3)</td></tr>
+<tr><td>RF-03</td><td>Ampliar recintos</td><td>Painel do recinto → Ampliar (área encostada)</td></tr>
+<tr><td>RF-04</td><td>Construir caminhos e instalações</td><td>Ferramentas 🛤️, 🍔 e 🏥</td></tr>
+<tr><td>RF-05</td><td>Expansão do parque</td><td>Compra de lotes 8×8 (🗺️)</td></tr>
+<tr><td>RF-06</td><td>Capacidade e população</td><td>“5 / 15 animais”, estados de ocupação e superlotação</td></tr>
+<tr><td>RF-07</td><td>Dados ao passar o mouse</td><td>Tooltip de recinto, animal, instalação e decoração</td></tr>
+<tr><td>RF-08</td><td>Comprar animais</td><td>Mercado com ofertas semanais e validações</td></tr>
+<tr><td>RF-09</td><td>Vender ou transferir</td><td>Vender, Programa de conservação, Mover</td></tr>
+<tr><td>RF-10</td><td>Controlar espécie e população</td><td>Painel de população, reprodução on/off</td></tr>
+<tr><td>RF-11</td><td>Nascimentos por espécie</td><td>Fertilidade, gestação, ninhada e maturidade por espécie</td></tr>
+<tr><td>RF-12</td><td>Estoque e consumo</td><td>Painel 🥕, depósito, compra automática</td></tr>
+<tr><td>RF-13</td><td>Limpeza dos recintos</td><td>Sujeira por ocupação, auxiliares, limpeza avulsa</td></tr>
+<tr><td>RF-14</td><td>Saúde e bem-estar</td><td>Modelo horário de saúde/bem-estar por animal</td></tr>
+<tr><td>RF-15</td><td>Contratar e atribuir funcionários</td><td>Painel 👷 com atribuição por recinto e carga de trabalho</td></tr>
+<tr><td>RF-16</td><td>Diagnóstico e tratamento</td><td>Clínica, veterinários, detecção e tratamento</td></tr>
+<tr><td>RF-17</td><td>Doenças e contágio</td><td>5 doenças, contágio por recinto, quarentena</td></tr>
+<tr><td>RF-18</td><td>Fluxo de visitantes</td><td>Agentes individuais com BFS</td></tr>
+<tr><td>RF-19</td><td>Satisfação</td><td>Felicidade individual, média diária, comentários</td></tr>
+<tr><td>RF-20</td><td>Preço do ingresso</td><td>Botões e controle deslizante (R$ 0–150) com preço justo e previsão</td></tr>
+<tr><td>RF-21</td><td>Receitas e despesas</td><td>Livro-caixa por categoria, histórico e gráfico</td></tr>
+<tr><td>RF-22</td><td>Desbloquear biomas e espécies</td><td>5 etapas com requisitos e prêmios</td></tr>
+<tr><td>RF-23</td><td>Alertas</td><td>Feed, registro, ícones no mapa, mensagens narrativas</td></tr>
+<tr><td>RF-24</td><td>Organizar por biomas</td><td>7 biomas com terrenos, vegetação e espécies próprios</td></tr>
+<tr><td>RF-25</td><td>Área fantástica</td><td>Etapa 5: solo místico, árvores místicas, cristais e 4 criaturas</td></tr></table>
+<h3>Decisões de design adotadas (GDD §22)</h3>
+<table>
+<tr><td>Câmera</td><td>Top-down puro</td></tr>
+<tr><td>Grade</td><td>Tiles de 32 px; instalações ocupam w×h tiles; decoração 1 tile; cercas nas bordas dos tiles</td></tr>
+<tr><td>Visitantes</td><td>Agentes individuais no mapa (máx. 450 simultâneos)</td></tr>
+<tr><td>Escala temporal</td><td>1 h = 6 s (1×), velocidades até 8×, pausa</td></tr>
+<tr><td>Detalhe animal</td><td>Indivíduos com dados próprios</td></tr>
+<tr><td>Compra e venda</td><td>Mercado com ofertas renovadas semanalmente</td></tr>
+<tr><td>Funcionários</td><td>Contratação individual com atribuição opcional por recinto</td></tr>
+<tr><td>Alimentação</td><td>Estoque global por tipo</td></tr>
+<tr><td>Expansão</td><td>Compra de lotes vizinhos</td></tr>
+<tr><td>Progressão</td><td>Carreira com etapas e modo livre</td></tr>
+<tr><td>Área fantástica</td><td>Conteúdo desbloqueável no mesmo jogo (Etapa 5)</td></tr>
+<tr><td>Plataforma</td><td>Navegador (Windows, macOS, Linux; Chrome, Edge, Firefox, Safari)</td></tr></table>
+
+<h2 id="dicas">30. Estratégias e dicas</h2>
+<ul>
+<li><b>Recintos estreitos e compridos encostados no caminho</b> rendem mais tiles de observação.</li>
+<li>Comece com espécies baratas e sociais (suricatos, capivaras, zebras) e compre <b>pelo menos o grupo mínimo</b>.</li>
+<li>Cuide do habitat antes de comprar: terreno certo vale 40% da nota.</li>
+<li>Coloque <b>banheiro, lanchonete e bebidas a cada ~15 tiles</b> de caminho, com bancos e lixeiras entre eles.</li>
+<li>Ajuste o ingresso perto do <b>preço justo</b>; ele sobe com a qualidade — melhorar o parque é a melhor forma de cobrar mais.</li>
+<li>Vigie a carga dos tratadores: cada um atende 14 animais por refeição. Contrate antes de a população crescer.</li>
+<li>Antes da Etapa 3, guarde dinheiro para a <b>clínica</b> (R$ 15.000) e um veterinário.</li>
+<li>Use a <b>prioridade alta</b> em recintos de espécies caras e as lentes para encontrar problemas rapidamente.</li>
+<li>Desligue a reprodução em recintos cheios ou venda os excedentes para gerar caixa.</li>
+<li>O estacionamento se paga rápido em parques com muitos visitantes.</li>
+</ul>
+
+<h2 id="faq">31. Perguntas frequentes</h2>
+<p><b>Ninguém visita meu zoológico.</b> Verifique se há animais em recintos com caminho encostado (aviso 👁️), se os caminhos estão ligados à entrada e se o ingresso não está muito acima do preço justo.</p>
+<p><b>A instalação mostra “⛔ sem acesso”.</b> Ela precisa encostar (lado, não diagonal) em um caminho conectado à entrada.</p>
+<p><b>Não consigo comprar um animal.</b> Falta espaço, a espécie é incompatível com as do recinto (predador ou outro bioma) ou falta dinheiro.</p>
+<p><b>Os animais estão com fome mesmo com estoque.</b> Tratadores sobrecarregados — veja o painel 👷.</p>
+<p><b>Meu bem-estar está baixo.</b> Abra o painel do recinto: as barras mostram qual fator (alimentação, habitat, limpeza, saúde, superlotação ou grupo social) está puxando para baixo.</p>
+<p><b>Perdi meu jogo salvo.</b> Salvamentos ficam no navegador usado. Exporte arquivos <code>.faunopolis</code> regularmente.</p>
+
+<h2 id="glossario">32. Glossário</h2>
+<table>
+<tr><td><b>Tile</b></td><td>Célula da grade (32×32 px no zoom 1)</td></tr>
+<tr><td><b>Lote</b></td><td>Bloco de 8×8 tiles comprado de uma vez</td></tr>
+<tr><td><b>Ocupação</b></td><td>Espaço usado pelos animais ÷ tiles do recinto</td></tr>
+<tr><td><b>Tile de observação</b></td><td>Tile de caminho alcançável encostado num recinto</td></tr>
+<tr><td><b>Preço justo</b></td><td>Valor de ingresso que o público considera adequado</td></tr>
+<tr><td><b>Atratividade</b></td><td>Pontuação de interesse do parque (espécies, biomas, instalações)</td></tr>
+<tr><td><b>Enriquecimento</b></td><td>Objeto que estimula comportamentos naturais (cupinzeiro, estrutura de escalada, bloco de gelo, cristal)</td></tr>
+<tr><td><b>Eficiência</b></td><td>Multiplicador da capacidade de trabalho da equipe</td></tr>
+<tr><td><b>BFS</b></td><td>Busca em largura usada para achar a rota mais curta nos caminhos</td></tr>
+<tr><td><b>Lente</b></td><td>Modo de visualização que colore os recintos por indicador</td></tr></table>
+</main>
+</div>
+<footer>FAUNÓPOLIS · Manual do Jogo · v1.0.0 · “Construa · Cuide · Cresça”</footer>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "name": "faunopolis",
+  "productName": "Faunópolis",
+  "version": "7.1.0",
+  "description": "Faunópolis — construa, cuide e faça crescer o seu zoológico (2D e 3D).",
+  "author": "Faunópolis",
+  "license": "UNLICENSED",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/make-icons.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "deploy:web": "npm run build:web && wrangler deploy",
+    "dist": "npm run icons && electron-builder --win nsis --publish never",
+    "dist:portable": "npm run icons && electron-builder --win portable --publish never"
+  },
+  "build": {
+    "appId": "br.com.faunopolis.jogo",
+    "productName": "Faunópolis",
+    "copyright": "Faunópolis",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "css/**",
+      "js/**",
+      "assets/**",
+      "docs/**",
+      "desktop/**",
+      "build/icon.png",
+      "package.json",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Faunopolis-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Faunopolis-Portatil-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Faunópolis",
+      "uninstallDisplayName": "Faunópolis",
+      "deleteAppDataOnUninstall": false,
+      "language": "1046"
+    }
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "wrangler": "^4.165.0"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
+  }
+}

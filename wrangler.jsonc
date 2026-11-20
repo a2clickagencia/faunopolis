@@ -1,0 +1,6 @@
+// Site do Faunópolis no Cloudflare (arquivos estáticos de dist-web/)
+{
+  "name": "faunopolis",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./dist-web" }
+}
