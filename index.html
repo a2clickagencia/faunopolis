@@ -2,16 +2,22 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Faunópolis">
+<meta name="format-detection" content="telephone=no">
 <title>Faunópolis</title>
-<meta name="description" content="Faunópolis — construa, cuide e faça crescer o seu zoológico. Jogo de simulação e gestão em 2D e 3D.">
+<meta name="description" content="Faunópolis — construa, cuide e faça crescer o seu zoológico. Jogo de simulação e gestão em 2D e 3D para computador, celular e tablet.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1F6B4A">
-<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
-<link rel="stylesheet" href="css/style.css?v=7110">
+<link rel="stylesheet" href="css/style.css?v=7200">
+<link rel="stylesheet" href="css/mobile.css?v=7200">
 </head>
 <body data-tool="select">
 <canvas id="game3d" style="display:none"></canvas>
@@ -35,9 +41,12 @@
         <a class="btn" href="docs/MANUAL_DO_JOGO.html" target="_blank">📖 Manual</a>
         <button class="btn" id="menu-credits">✨ Créditos</button>
       </div>
-      <a class="btn" id="menu-download" href="https://github.com/a2clickagencia/faunopolis/releases/download/v7.1.0/Faunopolis-Setup-7.1.0.exe" download="Faunopolis-Setup-7.1.0.exe" style="display:none">💻 Baixar para Windows (salvar no seu PC)</a>
+      <div class="menu-install hidden" id="menu-install">
+        <button class="btn big" id="menu-pwa">📥 Instalar o jogo<small>Windows, Android, iPhone e iPad</small></button>
+        <a class="btn" id="menu-download" href="https://github.com/a2clickagencia/faunopolis/releases/latest/download/Faunopolis-Setup.exe">💻 Baixar para Windows (salva no seu PC)</a>
+      </div>
     </div>
-    <p class="menu-ver">v7.1.0 · 64 espécies · 9 brinquedos · lagos nos recintos · 2D e 3D em alta qualidade</p>
+    <p class="menu-ver">v7.2.0 · computador, celular e tablet · 64 espécies · 9 brinquedos · 2D e 3D</p>
   </div>
 </div>
 
@@ -92,30 +101,29 @@
 <div id="toasts"></div>
 <div id="modal" class="hidden"><div class="modal-box"></div></div>
 
-<script src="js/lib/three.min.js?v=7110"></script>
-<script src="js/config.js?v=7110"></script>
-<script src="js/util.js?v=7110"></script>
-<script src="js/sprites.js?v=7110"></script>
-<script src="js/audio.js?v=7110"></script>
-<script src="js/world.js?v=7110"></script>
-<script src="js/animals.js?v=7110"></script>
-<script src="js/staff.js?v=7110"></script>
-<script src="js/economy.js?v=7110"></script>
-<script src="js/visitors.js?v=7110"></script>
-<script src="js/render.js?v=7110"></script>
-<script src="js/models3d.js?v=7110"></script>
-<script src="js/render3d.js?v=7110"></script>
-<script src="js/input.js?v=7110"></script>
-<script src="js/sim.js?v=7110"></script>
-<script src="js/save.js?v=7110"></script>
-<script src="js/ui.js?v=7110"></script>
-<script src="js/main.js?v=7110"></script>
+<script src="js/lib/three.min.js?v=7200"></script>
+<script src="js/config.js?v=7200"></script>
+<script src="js/util.js?v=7200"></script>
+<script src="js/sprites.js?v=7200"></script>
+<script src="js/audio.js?v=7200"></script>
+<script src="js/world.js?v=7200"></script>
+<script src="js/animals.js?v=7200"></script>
+<script src="js/staff.js?v=7200"></script>
+<script src="js/economy.js?v=7200"></script>
+<script src="js/visitors.js?v=7200"></script>
+<script src="js/render.js?v=7200"></script>
+<script src="js/models3d.js?v=7200"></script>
+<script src="js/render3d.js?v=7200"></script>
+<script src="js/input.js?v=7200"></script>
+<script src="js/sim.js?v=7200"></script>
+<script src="js/save.js?v=7200"></script>
+<script src="js/ui.js?v=7200"></script>
+<script src="js/mobile.js?v=7200"></script>
+<script src="js/main.js?v=7200"></script>
 <script>
 /* Site: instalável e offline (PWA). No app de computador nada disso é necessário. */
-if (!window.faunoDesktop && /^https?:$/.test(location.protocol)){
-  document.getElementById('menu-download').style.display = '';
-  if ('serviceWorker' in navigator && location.hostname !== 'localhost') navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+if (!window.faunoDesktop && /^https?:$/.test(location.protocol) && 'serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1')
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>

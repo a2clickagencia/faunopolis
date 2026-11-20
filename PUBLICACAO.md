@@ -3,7 +3,8 @@
 ## O que já está no ar
 - **Site:** https://faunopolis.a2clickagencia.workers.dev. Fica no Cloudflare, na sua conta, como um *Worker* com arquivos estáticos chamado `faunopolis`.
 - **Código:** https://github.com/a2clickagencia/faunopolis (repositório público).
-- **Instalador do Windows:** https://github.com/a2clickagencia/faunopolis/releases/latest. O botão "💻 Baixar para Windows" no menu do site leva para essa página.
+- **Instalador do Windows:** https://github.com/a2clickagencia/faunopolis/releases/latest. Link direto e fixo do instalador (sempre a versão mais nova): https://github.com/a2clickagencia/faunopolis/releases/latest/download/Faunopolis-Setup.exe
+- **Celular e tablet:** o próprio site é instalável (PWA). O botão "📲 Instalar" no menu do jogo instala no Android; no iPhone e iPad ele mostra o passo a passo do Safari.
 
 ## Atualizar o site
 ```powershell
@@ -23,7 +24,8 @@ O comando monta a pasta `dist-web/` (apenas os arquivos do jogo) e publica no Cl
    ```powershell
    git tag v7.2.0; git push; git push --tags
    ```
-3. O GitHub Actions (workflow "Instalador Windows") monta o `.exe` e cria a Release.
+3. O GitHub Actions (workflow "Instalador Windows") monta o `.exe` e cria a Release. O arquivo sempre se chama `Faunopolis-Setup.exe`, então o link direto acima não muda.
+4. Publique o site também (`npm run deploy:web`): o celular recebe a versão nova ao abrir o jogo com internet.
 
 Também é possível gerar o instalador no próprio PC com `npm run dist`. O arquivo sai em `dist\`.
 

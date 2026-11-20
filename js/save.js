@@ -76,10 +76,14 @@ SV.meta = function(slot){ try { return JSON.parse(localStorage.getItem(KEY + slo
 SV.has = slot => { try { if (localStorage.getItem(KEY + slot)) return true; } catch(e){} return !!(D && D.list().some(f => f.slot === slot)); };
 SV.remove = slot => { try { localStorage.removeItem(KEY + slot); localStorage.removeItem(KEY + slot + '_meta'); } catch(e){} if (D) D.remove(slot); };
 SV.exportFile = function(){
-  const blob = new Blob([SV.serialize()], {type: 'application/json'});
+  const data = SV.serialize();
+  const name = (FP.G.parkName || 'zoologico').replace(/[^\w\-]+/g, '_') + '_dia' + FP.G.day + '.faunopolis';
+  // celular/tablet: abre o "Compartilhar" (salvar no Drive, mandar no WhatsApp, e-mail…)
+  if (FP.Mobile && FP.Mobile.shareFile(name, data)) return 'shared';
+  const blob = new Blob([data], {type: 'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = (FP.G.parkName || 'zoologico').replace(/[^\w\-]+/g, '_') + '_dia' + FP.G.day + '.faunopolis';
+  a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };

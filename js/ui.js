@@ -102,7 +102,7 @@ UI.loadDialog = function(){
   const slots = ['auto', 'slot1', 'slot2', 'slot3'];
   const rows = slots.map(s => { const m = FP.Save.meta(s); return `<div class="row"><div><b>${s === 'auto' ? 'Automático' : 'Espaço ' + s.slice(-1)}</b><br><small>${m ? esc(m.name) + ' · Dia ' + m.day + ' · ' + U.money(m.money) + ' · ' + new Date(m.at).toLocaleString('pt-BR') : 'vazio'}</small></div>${m ? `<button class="btn sm" data-load="${s}">Carregar</button>` : ''}</div>`; }).join('');
   UI.modal(`<h2>Carregar jogo</h2><div class="list">${rows}</div>
-    <p><label class="btn ghost file">📂 Importar arquivo .faunopolis<input type="file" id="imp-file" accept=".faunopolis,.json" hidden></label></p>
+    <p><label class="btn ghost file">📂 Importar arquivo .faunopolis<input type="file" id="imp-file" ${document.body.classList.contains('touch') ? '' : 'accept=".faunopolis,.json"'} hidden></label></p>
     <div class="modal-actions"><button class="btn primary" data-close>Fechar</button></div>`);
   document.querySelectorAll('[data-load]').forEach(b => b.onclick = () => { if (FP.Save.load(b.dataset.load)){ UI.closeModal(); UI.startGame(); UI.toast('Jogo carregado.'); } });
   $('#imp-file').onchange = e => { const f = e.target.files[0]; if (!f) return; FP.Save.importFile(f, (ok, err) => { if (ok){ UI.closeModal(); UI.startGame(); UI.toast('Arquivo importado.'); } else UI.toast('Arquivo inválido: ' + err, 'error'); }); };
@@ -110,12 +110,19 @@ UI.loadDialog = function(){
 UI.saveDialog = function(){
   const slots = ['slot1', 'slot2', 'slot3'];
   const rows = slots.map(s => { const m = FP.Save.meta(s); return `<div class="row"><div><b>Espaço ${s.slice(-1)}</b><br><small>${m ? esc(m.name) + ' · Dia ' + m.day : 'vazio'}</small></div><button class="btn sm" data-save="${s}">Salvar aqui</button></div>`; }).join('');
-  UI.modal(`<h2>Salvar jogo</h2><div class="list">${rows}</div><p><button class="btn ghost" id="exp-file">💾 Exportar para arquivo</button></p><div class="modal-actions"><button class="btn primary" data-close>Fechar</button></div>`);
+  UI.modal(`<h2>Salvar jogo</h2><div class="list">${rows}</div><p><button class="btn ghost" id="exp-file">${document.body.classList.contains('touch') ? '📤 Exportar / enviar arquivo (Drive, WhatsApp, e-mail…)' : '💾 Exportar para arquivo'}</button></p><div class="modal-actions"><button class="btn primary" data-close>Fechar</button></div>`);
   document.querySelectorAll('[data-save]').forEach(b => b.onclick = () => { if (FP.Save.save(b.dataset.save)){ UI.toast('Jogo salvo.', 'good'); UI.closeModal(); } });
-  $('#exp-file').onclick = () => { FP.Save.exportFile(); UI.toast('Arquivo exportado para a pasta de downloads do navegador.'); };
+  $('#exp-file').onclick = () => { if (FP.Save.exportFile() !== 'shared') UI.toast('Arquivo exportado para a pasta de downloads do navegador.'); };
 };
 UI.helpDialog = function(){
+  const touch = document.body.classList.contains('touch');
   UI.modal(`<h2>Como jogar</h2>
+  ${touch ? `<div class="touch-help"><h4>📱 Controles de toque</h4>
+   <p><b>1 dedo</b>: arrasta o mapa · <b>toque</b>: abre o painel do animal, recinto ou instalação.</p>
+   <p><b>2 dedos</b>: mover · <b>pinça</b>: zoom · no 3D, <b>girar os dedos</b> gira a câmera e <b>arrastar os 2 dedos para cima/baixo</b> inclina.</p>
+   <p><b>Construir</b>: escolha a ferramenta na barra 🛤️🧱🧨… e <b>arraste 1 dedo</b> para desenhar; solte para construir. Instalações e lotes: <b>toque</b> no lugar.</p>
+   <p>Botões à direita: <b>✋</b> mover sem construir · <b>＋ －</b> zoom · <b>⤒ ⤓</b> inclinar (3D) · <b>🗺️</b> minimapa, lentes e câmeras 2D/3D.</p>
+   <p>O jogo salva sozinho a cada 3 dias de jogo e sempre que você sai do app. Em ☰ Menu dá para baixar a qualidade gráfica e ligar a economia de bateria.</p></div>` : ''}
   <div class="help-grid">
    <div><h4>Câmera</h4><p>WASD / setas: mover · Roda do mouse: zoom · Botão direito + arrastar: mover · Clique direito: cancelar ferramenta.</p></div>
    <div><h4>Câmera 3D (v2.0)</h4><p>V: alterna os modos (2D, Isométrica, Órbita livre, Seguir animal, Olhar do visitante, Tour) · Q/E: girar 90° · Botão do meio (ou Alt + botão direito): orbitar · Shift + roda ou PgUp/PgDn: inclinar.</p></div>
@@ -140,11 +147,19 @@ UI.pauseMenu = function(){
       <button class="btn" id="pm-load">📂 Carregar</button>
       <button class="btn" id="pm-help">❓ Como jogar</button>
       ${FP.Save.desktop ? '<button class="btn" id="pm-folder" title="' + esc(FP.Save.saveDir()) + '">🗂️ Abrir pasta dos jogos salvos</button>' : ''}
+      ${FP.Mobile && FP.Mobile.canInstall() ? '<button class="btn" id="pm-install">📲 Instalar o jogo (funciona sem internet)</button>' : ''}
+      ${FP.Mobile && FP.Mobile.canFullscreen() ? '<button class="btn" id="pm-full">⛶ Tela cheia</button>' : ''}
+      <label class="row-inline">🎨 Gráficos 3D <select id="pm-qual">${['auto', 'alta', 'media', 'baixa'].map(q => `<option value="${q}" ${FP.R3.qualitySetting() === q ? 'selected' : ''}>${q === 'auto' ? 'Automático (' + FP.R3.QUAL[FP.R3.qualityLevel()].nome.toLowerCase() + ')' : FP.R3.QUAL[q].nome}</option>`).join('')}</select></label>
+      <label class="row-inline"><input type="checkbox" id="pm-bat" ${FP.Mobile && FP.Mobile.battery() ? 'checked' : ''}> 🔋 Economia de bateria (30 quadros/s)</label>
       <label class="row-inline">🔊 Volume <input type="range" id="pm-vol" min="0" max="1" step="0.05" value="${FP.Audio.volume}"></label>
       <label class="row-inline"><input type="checkbox" id="pm-mute" ${FP.Audio.muted ? 'checked' : ''}> Silenciar efeitos</label>
       <button class="btn danger" id="pm-quit">⏏ Salvar e sair para o menu</button>
     </div>`, () => { G.paused = was; UI.renderTop(); });
   const pf = document.getElementById('pm-folder'); if (pf) pf.onclick = () => FP.Save.openFolder();
+  const pi = document.getElementById('pm-install'); if (pi) pi.onclick = () => { UI.closeModal(); FP.Mobile.install(); };
+  const pfu = document.getElementById('pm-full'); if (pfu) pfu.onclick = () => { UI.closeModal(); FP.Mobile.toggleFullscreen(); };
+  $('#pm-qual').onchange = e => FP.R3.setQuality(e.target.value);
+  $('#pm-bat').onchange = e => FP.Mobile.setBattery(e.target.checked);
   $('#pm-resume').onclick = () => { UI.closeModal(); };
   $('#pm-save').onclick = () => { UI.closeModal(); UI.saveDialog(); };
   $('#pm-load').onclick = () => { UI.closeModal(); UI.loadDialog(); };
@@ -304,9 +319,12 @@ UI.onToolChange = function(){
   });
   const hint = $('#toolhint');
   const H = {path:'🛤️ Clique no início, arraste até o fim e SOLTE para construir a reta (ou o "L") inteira de uma vez. Visitantes só andam em caminhos ligados à entrada.', pond:'💧 Arraste sobre o recinto para abrir um lago (áreas sem plantas/objetos).', fill:'⛰️ Arraste sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste um retângulo para criar um recinto (mín. 3×3). Pode ser desenhado por cima de outro recinto: os tiles são redesignados.', expand:'↔️ Arraste uma área encostada no recinto para ampliá-lo (pode tomar tiles de outro recinto).', reshape:'📐 Arraste a nova área completa do recinto. A área antiga é liberada (reembolso) e os animais são realocados.', release:'🔓 Arraste sobre áreas de recinto para liberá-las. Vegetação e decoração ficam; se um recinto inteiro for liberado, os animais vão para outro recinto compatível.', terrain:'🏞️ Pinte o terreno. Pincel: ', deco:'🌳 Clique (ou arraste) para posicionar.', building:'🏗️ Clique para posicionar. A instalação precisa encostar em um caminho.', land:'🗺️ Clique em um lote destacado para comprá-lo.', demolish:'🧨 Arraste sobre objetos, caminhos ou partes de recintos para demolir (reembolso parcial).'};
+  const HT = {path:'🛤️ Arraste o dedo do início ao fim e SOLTE: a reta (ou o "L") é construída de uma vez.', pond:'💧 Arraste o dedo sobre o recinto para abrir um lago.', fill:'⛰️ Arraste o dedo sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste o dedo para desenhar o retângulo do recinto (mín. 3×3).', expand:'↔️ Arraste o dedo numa área encostada no recinto para ampliá-lo.', reshape:'📐 Arraste o dedo marcando a nova área completa do recinto.', release:'🔓 Arraste o dedo sobre a área de recinto que quer liberar.', terrain:'🏞️ Pinte com o dedo. Pincel: ', deco:'🌳 Toque (ou arraste o dedo) para posicionar.', building:'🏗️ Toque no mapa para posicionar (encostado num caminho).', land:'🗺️ Toque num lote destacado para comprá-lo.', demolish:'🧨 Arraste o dedo sobre o que quer demolir.'};
+  const touch = document.body.classList.contains('touch');
+  if (FP.Mobile) FP.Mobile.renderFabs();
   if (I.tool === 'select'){ hint.classList.add('hidden'); return; }
   hint.classList.remove('hidden');
-  hint.innerHTML = (H[I.tool] || '') + (I.tool === 'terrain' ? [1,2,3].map(n => `<button class="btn xs ${I.brush === n ? 'on' : ''}" data-brush="${n}">${n * 2 - 1}×${n * 2 - 1}</button>`).join('') : '') + ' <button class="btn xs ghost" id="tool-cancel">Cancelar (Esc)</button>';
+  hint.innerHTML = (touch ? (I.panLock ? '✋ Mover ligado: 1 dedo move o mapa. Toque em ✋ para voltar a construir.' : (HT[I.tool] || '') + (['building', 'land'].includes(I.tool) ? '' : ' <small>2 dedos movem o mapa.</small>')) : (H[I.tool] || '')) + (I.tool === 'terrain' ? [1,2,3].map(n => `<button class="btn xs ${I.brush === n ? 'on' : ''}" data-brush="${n}">${n * 2 - 1}×${n * 2 - 1}</button>`).join('') : '') + ' <button class="btn xs ghost" id="tool-cancel">' + (touch ? '✖ Sair' : 'Cancelar (Esc)') + '</button>';
   hint.querySelectorAll('[data-brush]').forEach(b => b.onclick = () => { I.brush = +b.dataset.brush; UI.onToolChange(); });
   $('#tool-cancel').onclick = () => FP.Input.setTool('select');
 };
@@ -314,6 +332,7 @@ const TOY_TAG = {todos:'todos', quad:'mamíferos', elefante:'elefantes', primata
 UI.toyWho = function(k, full){ const g = FP.DECOS[k].gosto; return full ? g.map(t => TOY_TAG[t] || t).join(', ') : (TOY_TAG[g[0]] || g[0]); };
 UI.openFlyout = function(c){
   const f = $('#flyout');
+  if (document.body.classList.contains('phone') && !$('#panel').classList.contains('hidden')) UI.closePanels();
   if (!f.classList.contains('hidden') && f.dataset.cat === c.id){ f.classList.add('hidden'); return; }
   f.dataset.cat = c.id;
   const G = FP.G, E = FP.Economy;
@@ -332,6 +351,7 @@ UI.openFlyout = function(c){
     else if (k === 'deco') FP.Input.setTool('deco', id);
     else FP.Input.setTool('building', id);
     f.querySelectorAll('.fly-item').forEach(x => x.classList.toggle('on', x === b));
+    if (document.body.classList.contains('phone')) f.classList.add('hidden');
   });
 };
 
@@ -446,6 +466,7 @@ function showPanel(title, renderFn, sel, key){
     bindPanel(body);
   };
   $('#panel').classList.remove('hidden');
+  if (document.body.classList.contains('phone')){ $('#flyout').classList.add('hidden'); document.body.classList.remove('showmap'); }
   $('#panel .p-body').scrollTop = 0;
   panelRender();
   document.querySelectorAll('#mgmtbar button').forEach(b => b.classList.toggle('on', b.dataset.panel === key));

@@ -1,0 +1,163 @@
+/* =========================================================
+   FAUNÓPOLIS — mobile.css (v7.2)
+   Celular (body.phone) e tablet (body.tablet), em pé (portrait)
+   ou deitado (landscape). As classes são postas por js/mobile.js.
+   ========================================================= */
+:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px)}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overscroll-behavior:none}
+body.touch *{-webkit-tap-highlight-color:transparent}
+body.touch button,body.touch .btn,body.touch a,body.touch label,body.touch select{touch-action:manipulation}
+body.touch #game,body.touch #game3d,body.touch #minimap{touch-action:none}
+body.touch img{-webkit-touch-callout:none;-webkit-user-drag:none}
+body.touch #tooltip{display:none!important}
+.p-body,#flyout,.modal-box,#buildbar,#mgmtbar{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+
+/* ---------- Menu: instalar ---------- */
+.menu-install{display:grid;gap:8px;margin-top:10px}
+.menu-install .btn.big{background:linear-gradient(135deg,#2E8FB8,#1F6B4A);border-color:#4fb0d6}
+.menu-install .btn.big:hover{filter:brightness(1.08)}
+.menu-install-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.inst-grid{display:grid;gap:10px}
+.inst-card{background:#22343a;border:1px solid var(--ui-line);border-radius:14px;padding:10px 14px}
+.inst-card.cur{border-color:var(--ouro-savana);background:#2b3d33}
+.inst-card h3{margin:2px 0 6px;font-size:16px}
+.inst-card ol{margin:4px 0 8px;padding-left:20px;line-height:1.5;font-size:13px}
+.inst-card p{margin:4px 0 8px;font-size:13px}
+.inst-tag{font-family:var(--f-text);font-size:10.5px;font-weight:800;background:var(--ouro-savana);color:var(--grafite-noite);padding:2px 8px;border-radius:10px;vertical-align:middle}
+.inst-ico{display:inline-block;border:1px solid var(--ui-line);border-radius:5px;padding:0 5px}
+.touch-help{background:#22343a;border-radius:12px;padding:4px 12px 8px;margin-bottom:8px}
+.touch-help p{font-size:13px;margin:5px 0;line-height:1.45}
+.row-inline select{background:#2c4148;color:var(--ui-text);border:1px solid var(--ui-line);border-radius:7px;padding:4px 6px;font-family:inherit;font-size:13px}
+
+/* ---------- Botões flutuantes (só em toque) ---------- */
+#fabs{display:none}
+body.touch #fabs{display:flex;flex-direction:column;gap:6px;position:fixed;z-index:10;right:calc(8px + var(--sar));bottom:200px}
+#fabs button{width:48px;height:48px;border-radius:14px;background:var(--ui-bg);border:1px solid var(--ui-line);color:var(--ui-text);font-size:21px;box-shadow:var(--shadow);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+#fabs button:active{transform:scale(.94)}
+#fabs button.on{background:var(--ouro-savana);color:var(--grafite-noite)}
+#fabs .only3d{display:none!important}
+body.mode3d #fabs .only3d{display:flex!important}
+body.tablet #fabs [data-fab="map"]{display:none}
+body.tablet #panel:not(.hidden) ~ #fabs{right:calc(440px + var(--sar))}
+
+/* ---------- Tablet: layout de computador com alvos maiores ---------- */
+body.tablet #buildbar button{width:52px;height:50px;font-size:24px}
+body.tablet #flyout{left:76px}
+body.tablet .fly-item{padding:10px 4px}
+body.tablet #speed button,body.tablet #btn-menu{height:38px;min-width:40px;font-size:14px}
+body.tablet #lenses button{height:32px}
+body.tablet #cambar button{height:34px}
+body.tablet .btn.sm{padding:9px 13px;font-size:13px}
+body.tablet .btn.xs{padding:6px 10px;font-size:12px}
+body.tablet #feed{left:80px}
+body.tablet.portrait #panel{width:min(420px,58vw)}
+body.tablet.portrait #panel:not(.hidden) ~ #fabs{right:calc(min(420px,58vw) + 20px)}
+body.tablet.portrait .tb-logo,body.tablet.portrait #t-net,body.tablet.portrait #t-rep-sub,body.tablet.portrait #t-vis-sub{display:none}
+body.tablet.portrait .tb-item{padding:0 6px}
+body.tablet.portrait .tb-item .lbl{font-size:9px;letter-spacing:.4px}
+body.tablet.portrait #speed button{min-width:36px}
+body.tablet.portrait #mgmtbar{left:8px;right:8px;transform:none;justify-content:space-between;overflow-x:auto}
+body.tablet.portrait #mgmtbar button{flex:1;min-width:52px}
+body.tablet.portrait #mapbox{bottom:76px}
+body.tablet.portrait #fabs{bottom:330px}
+body.tablet.landscape #fabs{bottom:270px}
+
+/* =========================================================
+   CELULAR
+   ========================================================= */
+body.phone{font-size:13px}
+body.phone .tb-logo,
+body.phone #topbar .tb-item:nth-of-type(4),
+body.phone #topbar .tb-item:nth-of-type(5),
+body.phone .tb-spacer,
+body.phone #t-net, body.phone #t-vis-sub, body.phone #t-rep-sub{display:none}
+body.phone #topbar{top:calc(4px + var(--sat));left:calc(4px + var(--sal));right:calc(4px + var(--sar));height:auto;min-height:44px;padding:4px 6px;gap:4px;border-radius:13px;flex-wrap:wrap}
+body.phone .tb-item{padding:0 6px;min-width:0;border-right:1px solid var(--ui-line)}
+body.phone .tb-item .lbl{font-size:8.5px;letter-spacing:.5px}
+body.phone .tb-item b{font-size:14px;white-space:nowrap}
+body.phone .tb-item small{font-size:9.5px;white-space:nowrap}
+body.phone #speed{gap:2px}
+body.phone #speed button,body.phone #btn-menu{height:34px;min-width:34px;font-size:12px;padding:0 4px}
+body.phone #btn-menu{margin-left:2px;font-size:17px}
+
+/* em pé: 1ª linha com os números, 2ª com velocidade e menu */
+body.phone.portrait .tb-item{flex:1 1 20%;overflow:hidden}
+body.phone.portrait .tb-item b,body.phone.portrait .tb-item small{overflow:hidden;text-overflow:ellipsis}
+body.phone.portrait .tb-item.time{flex:1.5 1 26%;text-align:left;align-items:flex-start;border-right:0}
+body.phone #menu-download{display:none}
+body.phone.portrait #speed{flex:1 1 60%}
+body.phone.portrait #speed button{flex:1}
+body.phone.portrait #btn-menu{flex:0 0 48px}
+
+/* barras: em pé ficam embaixo (construção sobre a de gestão), com rolagem lateral */
+body.phone #buildbar,body.phone #mgmtbar{border-radius:14px;scrollbar-width:none}
+body.phone #buildbar::-webkit-scrollbar,body.phone #mgmtbar::-webkit-scrollbar{display:none}
+body.phone.portrait #mgmtbar{left:calc(4px + var(--sal));right:calc(4px + var(--sar));bottom:calc(4px + var(--sab));transform:none;overflow-x:auto;padding:3px;gap:2px}
+body.phone.portrait #mgmtbar button{flex:0 0 auto;width:58px;height:48px}
+body.phone #mgmtbar button small{display:block;font-size:9px}
+body.phone #mgmtbar button span{font-size:19px}
+body.phone.portrait #buildbar{top:auto;left:calc(4px + var(--sal));right:calc(4px + var(--sar));bottom:calc(60px + var(--sab));flex-direction:row;overflow-x:auto;padding:4px;gap:3px}
+body.phone #buildbar button{flex:0 0 auto;width:46px;height:44px;font-size:22px}
+body.phone.portrait #flyout{left:calc(4px + var(--sal));right:calc(4px + var(--sar));top:auto;bottom:calc(118px + var(--sab));width:auto;max-height:46vh;padding:8px 10px}
+body.phone .fly-grid{grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+body.phone .fly-item{padding:8px 3px}
+body.phone.portrait #panel{left:calc(4px + var(--sal));right:calc(4px + var(--sar));top:auto;bottom:calc(4px + var(--sab));height:64vh;width:auto;max-width:none;z-index:15;border-radius:18px 18px 14px 14px}
+body.phone.portrait #toolhint{top:calc(96px + var(--sat));left:calc(4px + var(--sal));right:calc(4px + var(--sar));transform:none;max-width:none;flex-wrap:wrap;font-size:12px;padding:6px 10px;justify-content:center;text-align:center}
+body.phone.portrait #toasts{top:calc(98px + var(--sat))}
+body.phone.portrait #feed{left:calc(4px + var(--sal));right:calc(62px + var(--sar));width:auto;bottom:calc(122px + var(--sab))}
+body.phone.portrait #fabs{bottom:calc(126px + var(--sab))}
+body.phone.portrait #mapbox{right:calc(60px + var(--sar));bottom:calc(122px + var(--sab))}
+
+/* deitado: construção na lateral esquerda, gestão embaixo */
+body.phone.landscape #topbar{left:calc(4px + var(--sal));right:calc(4px + var(--sar));min-height:42px;flex-wrap:nowrap}
+body.phone.landscape .tb-item{flex:0 1 auto}
+body.phone.landscape #speed{margin-left:auto}
+body.phone.landscape #buildbar{top:calc(52px + var(--sat));left:calc(4px + var(--sal));bottom:calc(4px + var(--sab));overflow-y:auto;padding:4px;gap:2px}
+body.phone.landscape #buildbar button{width:42px;height:38px;font-size:20px}
+body.phone.landscape #mgmtbar{left:calc(56px + var(--sal));right:calc(60px + var(--sar));bottom:calc(4px + var(--sab));transform:none;overflow-x:auto;padding:3px;gap:2px}
+body.phone.landscape #mgmtbar button{flex:1 0 auto;width:auto;min-width:48px;height:42px}
+body.phone.landscape #mgmtbar button small{display:none}
+body.phone.landscape #flyout{left:calc(54px + var(--sal));top:calc(52px + var(--sat));bottom:calc(52px + var(--sab));width:min(430px,62vw);max-height:none}
+body.phone.landscape #panel{top:calc(52px + var(--sat));bottom:calc(4px + var(--sab));right:calc(4px + var(--sar));width:min(440px,60vw);z-index:15}
+body.phone.landscape #toolhint{top:calc(52px + var(--sat));left:calc(56px + var(--sal));right:calc(60px + var(--sar));transform:none;max-width:none;font-size:11.5px;padding:5px 9px;flex-wrap:wrap}
+body.phone.landscape #toasts{top:calc(56px + var(--sat))}
+body.phone.landscape #feed{left:calc(56px + var(--sal));bottom:calc(54px + var(--sab));width:300px}
+body.phone.landscape #fabs{top:calc(52px + var(--sat));bottom:auto;gap:4px}
+body.phone.landscape #fabs button{width:44px;height:40px;font-size:18px}
+body.phone.landscape #mapbox{right:calc(56px + var(--sar));bottom:calc(52px + var(--sab))}
+
+/* comum ao celular */
+body.phone #panel:not(.hidden) ~ #fabs,body.phone #panel:not(.hidden) ~ #feed{display:none}
+body.phone.portrait #flyout:not(.hidden) ~ #feed{display:none}
+body.phone #mapbox{display:none;padding:5px}
+body.phone.showmap #mapbox{display:block}
+body.phone #minimap{width:176px;height:132px}
+body.phone #lenses button{height:32px;font-size:14px}
+body.phone #cambar button{height:34px}
+body.phone .feed-item{padding:6px 8px}
+body.phone .feed-item p{font-size:11px}
+body.phone .feed-item:nth-child(n+3){display:none}
+body.phone .toast{max-width:92vw;font-size:12.5px}
+body.phone .p-head{padding:10px 12px 6px}
+body.phone .p-title{font-size:16px}
+body.phone .p-body{padding:8px 12px 14px}
+body.phone .p-close{font-size:30px;padding:0 6px}
+body.phone .stat{grid-template-columns:84px 1fr 40px}
+body.phone .cols,body.phone .help-grid{grid-template-columns:1fr}
+body.phone .btn.sm{padding:8px 11px}
+body.phone .btn.xs{padding:5px 9px;font-size:11.5px}
+body.phone .modal-box{width:94vw;max-height:88vh;padding:14px 16px;border-radius:16px}
+body.phone .modal-box h2{font-size:20px}
+body.phone .offer{grid-template-columns:18px 1fr auto;row-gap:4px}
+
+/* menu principal no celular */
+body.phone #menu{align-items:flex-start;overflow-y:auto;padding:calc(12px + var(--sat)) 0 calc(12px + var(--sab))}
+body.phone .menu-card{margin:auto;padding:20px 16px 14px;border-radius:20px}
+body.phone .menu-sub{font-size:13.5px;margin:4px 0 14px}
+body.phone .btn.big{font-size:15px;padding:11px 14px}
+body.phone.landscape .menu-card{width:min(760px,94vw)}
+body.phone.landscape .menu-logo{max-width:300px}
+body.phone.landscape .menu-buttons{grid-template-columns:1fr 1fr}
+body.phone.landscape .menu-buttons .menu-row,body.phone.landscape .menu-buttons > a{grid-column:1/-1}
+body.phone.landscape .menu-install{margin-top:6px}

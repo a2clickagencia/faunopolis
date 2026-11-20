@@ -21,11 +21,118 @@ I.init = function(canvas){
   cv.addEventListener('mouseleave', () => { I.hoverTile = null; FP.UI.hideTooltip(); });
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-  // toque básico (arrastar para mover a câmera, pinça para zoom)
-  let touch = null;
-  cv.addEventListener('touchstart', e => { if (e.touches.length === 1){ touch = {x: e.touches[0].clientX, y: e.touches[0].clientY, cx: FP.Cam.x, cy: FP.Cam.y, moved: false}; } else if (e.touches.length === 2){ const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); touch = {pinch: d, z: FP.Cam.zoom}; } }, {passive: true});
-  cv.addEventListener('touchmove', e => { if (!touch) return; if (touch.pinch && e.touches.length === 2){ const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (is3D()){ FP.R3.zoomBy(d / touch.pinch); touch.pinch = d; } else FP.Cam.zoom = U.clamp(touch.z * d / touch.pinch, FP.Cam.minZ, FP.Cam.maxZ); } else if (e.touches.length === 1 && !touch.pinch){ const dx = e.touches[0].clientX - touch.x, dy = e.touches[0].clientY - touch.y; if (Math.abs(dx) + Math.abs(dy) > 6) touch.moved = true; if (is3D()){ FP.R3.panBy(e.touches[0].clientX - (touch.lx || touch.x), e.touches[0].clientY - (touch.ly || touch.y)); touch.lx = e.touches[0].clientX; touch.ly = e.touches[0].clientY; } else { FP.Cam.x = touch.cx - dx / FP.Cam.zoom; FP.Cam.y = touch.cy - dy / FP.Cam.zoom; FP.Render.clampCam(); } } e.preventDefault(); }, {passive: false});
-  cv.addEventListener('touchend', e => { if (touch && !touch.pinch && !touch.moved){ const t = e.changedTouches[0]; I.mouse = {x: t.clientX, y: t.clientY}; updateHover(); toolDown(); toolUp(); } touch = null; });
+  initTouch();
+};
+
+/* ---------- v7.2: controles de toque (celular e tablet) ----------
+   Ferramenta "Selecionar" (ou "✋ Mover" ligado): 1 dedo arrasta o mapa, toque abre o painel.
+   Ferramentas de desenho (caminho, recinto, lago, terreno, demolir…): 1 dedo DESENHA, solte para construir.
+   Instalações e lotes: toque para posicionar (arrastar com 1 dedo move o mapa).
+   2 dedos, sempre: mover + pinça (zoom); no 3D, girar os dedos gira a câmera e
+   arrastar os 2 dedos para cima/baixo inclina. */
+const DRAW_TOOLS = ['path', 'enclosure', 'expand', 'demolish', 'release', 'reshape', 'pond', 'fill', 'terrain', 'deco'];
+I.panLock = false;   // botão "✋ Mover": 1 dedo só move o mapa, mesmo com uma ferramenta ativa
+I.isTouch = false;
+I.drawsWithFinger = () => !I.panLock && DRAW_TOOLS.includes(I.tool);
+function initTouch(){
+  let T1 = null, T2 = null, holdTimer = 0;
+  const pt = t => ({x: t.clientX, y: t.clientY});
+  const setMouse = p => { I.mouse = {x: p.x, y: p.y}; updateHover(); };
+  const endDraw = cancel => {
+    if (!I.drag) return;
+    // retângulos e caminhos são descartados; pintura (terreno/vegetação) já foi paga e é finalizada
+    if (cancel && I.tool !== 'terrain' && I.tool !== 'deco'){ I.drag = null; return; }
+    toolUp();
+  };
+  const startGesture = e => {
+    clearTimeout(holdTimer);
+    if (T1 && T1.drawing) endDraw(true);
+    const a = pt(e.touches[0]), b = pt(e.touches[1]);
+    T1 = null;
+    T2 = {mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y) || 1, ang: Math.atan2(b.y - a.y, b.x - a.x), cx: FP.Cam.x, cy: FP.Cam.y, z: FP.Cam.zoom, wx: 0, wy: 0};
+    if (!is3D()){ const w = FP.Render.screenToWorld(T2.mx, T2.my); T2.wx = w.x; T2.wy = w.y; }
+  };
+  cv.addEventListener('touchstart', e => {
+    I.isTouch = true;
+    FP.UI.unlockAudio && FP.UI.unlockAudio();
+    FP.UI.hideTooltip();
+    if (e.touches.length >= 2){ startGesture(e); e.preventDefault(); return; }
+    const p = pt(e.touches[0]);
+    T1 = {x: p.x, y: p.y, lx: p.x, ly: p.y, cx: FP.Cam.x, cy: FP.Cam.y, moved: false, drawing: false, t: performance.now()};
+    if (I.drawsWithFinger()){
+      // começa a desenhar após um pequeno atraso (ou ao mover), para que um 2º dedo vire gesto de câmera
+      const me = T1;
+      holdTimer = setTimeout(() => { if (T1 === me && !me.drawing){ setMouse(me); me.drawing = true; toolDown(); } }, 140);
+    }
+    e.preventDefault();
+  }, {passive: false});
+  cv.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length >= 2){
+      if (!T2){ startGesture(e); return; }
+      const a = pt(e.touches[0]), b = pt(e.touches[1]);
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y) || 1, ang = Math.atan2(b.y - a.y, b.x - a.x);
+      if (is3D()){
+        const ddx = mx - T2.mx, ddy = my - T2.my;
+        let da = ang - T2.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+        FP.R3.zoomBy(d / T2.d, mx, my);
+        if (Math.abs(da) > .004) FP.R3.orbitBy(-da / .006, 0);
+        // dois dedos na vertical (sem afastar) = inclinar; senão, mover
+        const pinchy = Math.abs(d - T2.d) > 2;
+        if (!pinchy && Math.abs(ddy) > Math.abs(ddx) * 1.6 && Math.abs(a.y - b.y) < Math.abs(a.x - b.x) * 1.2 && T2.tilt !== false){ T2.tilt = true; FP.R3.orbitBy(0, ddy * 1.1); }
+        else { if (Math.abs(ddx) + Math.abs(ddy) > 1.5) T2.tilt = false; FP.R3.panBy(ddx, ddy); }
+        T2.mx = mx; T2.my = my; T2.d = d; T2.ang = ang;
+      } else {
+        FP.Cam.zoom = U.clamp(T2.z * d / T2.d, FP.Cam.minZ, FP.Cam.maxZ);
+        // mantém sob os dedos o ponto do mundo onde a pinça começou
+        const W2 = window.innerWidth / 2, H2 = window.innerHeight / 2;
+        FP.Cam.x = T2.wx - (mx - W2) / FP.Cam.zoom; FP.Cam.y = T2.wy - (my - H2) / FP.Cam.zoom;
+        FP.Render.clampCam();
+      }
+      return;
+    }
+    if (!T1) return;
+    const p = pt(e.touches[0]);
+    const dx = p.x - T1.x, dy = p.y - T1.y;
+    if (Math.abs(dx) + Math.abs(dy) > 8) T1.moved = true;
+    if (I.drawsWithFinger()){
+      if (!T1.drawing && T1.moved){ clearTimeout(holdTimer); setMouse(T1); T1.drawing = true; toolDown(); }
+      if (T1.drawing){ setMouse(p); if (I.drag) toolMove(); }
+      return;
+    }
+    if (!T1.moved) return;
+    if (is3D()){ FP.R3.panBy(p.x - T1.lx, p.y - T1.ly); T1.lx = p.x; T1.ly = p.y; }
+    else { FP.Cam.x = T1.cx - dx / FP.Cam.zoom; FP.Cam.y = T1.cy - dy / FP.Cam.zoom; FP.Render.clampCam(); }
+  }, {passive: false});
+  const onEnd = e => {
+    if (e.touches.length >= 2) return;
+    if (e.touches.length === 1 && T2){
+      // sobrou um dedo depois do gesto: ele só move o mapa até ser solto
+      const p = pt(e.touches[0]); T2 = null;
+      T1 = {x: p.x, y: p.y, lx: p.x, ly: p.y, cx: FP.Cam.x, cy: FP.Cam.y, moved: true, drawing: false, afterGesture: true};
+      return;
+    }
+    clearTimeout(holdTimer);
+    const was = T1; T1 = null; T2 = null;
+    if (!was || e.type === 'touchcancel'){ endDraw(true); return; }
+    if (was.afterGesture) return;
+    const p = pt(e.changedTouches[0]);
+    if (was.drawing){ setMouse(p); toolMove(); toolUp(); }
+    else if (!was.moved){
+      // toque simples: seleciona, posiciona instalação, compra lote ou marca 1 tile
+      setMouse(p);
+      if (I.panLock && I.tool !== 'select'){ if (I.hoverTile) FP.UI.clickWorld(I.hoverTile); }
+      else { toolDown(); if (I.drag){ toolMove(); toolUp(); } }
+    }
+    // sem mouse, a prévia some quando o dedo sai (exceto instalações, que mostram onde foram postas)
+    if (I.tool !== 'building') I.hoverTile = null;
+  };
+  cv.addEventListener('touchend', onEnd);
+  cv.addEventListener('touchcancel', onEnd);
+}
+I.zoomStep = function(f){
+  if (is3D()) FP.R3.zoomBy(f);
+  else FP.Cam.zoom = U.clamp(FP.Cam.zoom * f, FP.Cam.minZ, FP.Cam.maxZ);
 };
 
 I.setTool = function(tool, arg){

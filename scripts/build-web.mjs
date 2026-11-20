@@ -23,6 +23,13 @@ fs.writeFileSync(path.join(out, '_headers'), `/sw.js
 // carimba a versão do cache do service worker
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const swp = path.join(out, 'sw.js');
-fs.writeFileSync(swp, fs.readFileSync(swp, 'utf8').replace('__VERSION__', pkg.version + '-' + Date.now()));
+const pre = ['./'];
+const walkPre = (d, rel) => fs.readdirSync(d, {withFileTypes: true}).forEach(e => {
+  const r = rel ? rel + '/' + e.name : e.name;
+  if (e.isDirectory()){ if (r !== 'docs') walkPre(path.join(d, e.name), r); }
+  else if (!['_headers', 'sw.js', 'galeria-de-sprites.html'].includes(r)) pre.push(r);
+});
+walkPre(out, '');
+fs.writeFileSync(swp, fs.readFileSync(swp, 'utf8').replace('__VERSION__', pkg.version + '-' + Date.now()).replace('__PRECACHE__', JSON.stringify(pre)));
 let n = 0; const walk = d => fs.readdirSync(d, {withFileTypes: true}).forEach(e => e.isDirectory() ? walk(path.join(d, e.name)) : n++); walk(out);
 console.log(`dist-web pronto: ${n} arquivos`);

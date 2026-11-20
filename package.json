@@ -1,7 +1,7 @@
 {
   "name": "faunopolis",
   "productName": "Faunópolis",
-  "version": "7.1.0",
+  "version": "7.2.0",
   "description": "Faunópolis — construa, cuide e faça crescer o seu zoológico (2D e 3D).",
   "author": "Faunópolis",
   "license": "UNLICENSED",
@@ -38,7 +38,7 @@
         "nsis"
       ],
       "icon": "build/icon.png",
-      "artifactName": "Faunopolis-Setup-${version}.${ext}"
+      "artifactName": "Faunopolis-Setup.${ext}"
     },
     "portable": {
       "artifactName": "Faunopolis-Portatil-${version}.${ext}"
@@ -52,7 +52,8 @@
       "shortcutName": "Faunópolis",
       "uninstallDisplayName": "Faunópolis",
       "deleteAppDataOnUninstall": false,
-      "language": "1046"
+      "language": "1046",
+      "artifactName": "Faunopolis-Setup.${ext}"
     }
   },
   "devDependencies": {

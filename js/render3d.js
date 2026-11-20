@@ -42,25 +42,69 @@ const uTime = {value: 0};
 /* ---------------- Inicialização ---------------- */
 R3.available = () => !!window.THREE;
 R3._dbg = () => ({scene, camera, renderer, sun, skyUni, terrainGeo});
+/* v7.2: qualidade gráfica (alta no PC; média/baixa automática em celular e tablet) */
+const QUAL = {
+  alta:  {nome: 'Alta',  pr: 1.75, shadow: 4096, soft: true,  grass: 1,   aa: true},
+  media: {nome: 'Média', pr: 1.25, shadow: 2048, soft: false, grass: .55, aa: true},
+  baixa: {nome: 'Baixa', pr: 1,    shadow: 1024, soft: false, grass: .25, aa: false}
+};
+R3.QUAL = QUAL;
+R3.autoQuality = function(){
+  const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  if (!coarse) return 'alta';
+  const mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
+  const big = Math.min(screen.width, screen.height) >= 700;
+  return big && mem >= 4 && cores >= 6 ? 'media' : 'baixa';
+};
+R3.qualitySetting = function(){ try { return localStorage.getItem('faunopolis_qualidade') || 'auto'; } catch (e){ return 'auto'; } };
+let qLevel = null;
+function Q(){ if (!qLevel){ const s = R3.qualitySetting(); qLevel = QUAL[s] ? s : R3.autoQuality(); } return QUAL[qLevel]; }
+R3.qualityLevel = () => (Q(), qLevel);
+R3.setQuality = function(setting, quiet){
+  try { localStorage.setItem('faunopolis_qualidade', setting); } catch (e){}
+  applyLevel(QUAL[setting] ? setting : R3.autoQuality(), quiet);
+};
+function applyLevel(level, quiet){
+  const old = qLevel; qLevel = level;
+  if (!R3.ok || old === level) return;
+  const q = QUAL[level];
+  renderer.shadowMap.type = q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  sun.shadow.mapSize.set(q.shadow, q.shadow);
+  if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; }
+  scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
+  grassSig = ''; resize();
+  if (!quiet) FP.UI.toast('Gráficos 3D: qualidade ' + q.nome.toLowerCase() + '.');
+}
+// no modo automático, se o aparelho não aguentar (menos de ~22 quadros/s), baixa a qualidade sozinho
+const perf = {t: 0, n: 0, warmup: 3};
+function perfSample(dt){
+  if (R3.qualitySetting() !== 'auto' || document.hidden) return;
+  if (perf.warmup > 0){ perf.warmup -= dt; return; }
+  perf.t += dt; perf.n++;
+  if (perf.t < 5) return;
+  const fps = perf.n / perf.t; perf.t = 0; perf.n = 0;
+  if (fps < 22 && qLevel !== 'baixa'){ applyLevel(qLevel === 'alta' ? 'media' : 'baixa', true); perf.warmup = 3; FP.UI.toast('O 3D estava lento: qualidade gráfica reduzida automaticamente.', 'info'); }
+  else if (fps < 14 && qLevel === 'baixa' && !perf.warned){ perf.warned = true; FP.UI.toast('Dica: se o 3D estiver lento, toque em 🗺️ e use a visão 2D, que é bem mais leve.', 'info'); }
+}
 function init(){
   if (R3.ok) return true;
   if (!window.THREE){ FP.UI.toast('Biblioteca 3D (js/lib/three.min.js) não encontrada.', 'error'); return false; }
   M3 = FP.M3; col = M3.col; lerpC = M3.lerpC; mulC = M3.mulC;
   canvas = document.getElementById('game3d');
   try {
-    renderer = new THREE.WebGLRenderer({canvas, antialias: true, powerPreference: 'high-performance'});
+    renderer = new THREE.WebGLRenderer({canvas, antialias: Q().aa, powerPreference: 'high-performance'});
   } catch (e){ FP.UI.toast('Seu navegador não suporta WebGL: o modo 3D está indisponível.', 'error'); return false; }
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .86;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = Q().soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(30, 1, .1, 1200);
   hemi = new THREE.HemisphereLight(0xcfe6ff, 0x4a5a3a, .35); scene.add(hemi);
   sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.mapSize.set(Q().shadow, Q().shadow);
   sun.shadow.bias = -.00025; sun.shadow.normalBias = .025;
   scene.add(sun); scene.add(sun.target);
   scene.fog = new THREE.Fog(0xbfdcf0, 120, 420);
@@ -93,7 +137,7 @@ function init(){
 function resize(){
   if (!renderer) return;
   W = window.innerWidth; H = window.innerHeight;
-  renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1));
+  renderer.setPixelRatio(Math.min(Q().pr, window.devicePixelRatio || 1));
   renderer.setSize(W, H, false);
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   camera.aspect = W / H; camera.updateProjectionMatrix();
@@ -634,7 +678,7 @@ function rebuildGrass(G){
     if (o >= 0){ const ob = G.objects[o]; if (ob && (ob.kind === 'building' || (FP.DECOS[ob.type] && FP.DECOS[ob.type].bloqueia))) continue; }
     const x = i % FP.W, y = (i / FP.W) | 0;
     const own = G.owned[i];
-    const n = own ? pal[2] : Math.max(1, pal[2] - 4);
+    const n = Math.round((own ? pal[2] : Math.max(1, pal[2] - 4)) * Q().grass);
     const tc = tileColor(G, i, x, y);
     for (let j = 0; j < n; j++){
       const hx = U.hash(x, y, 30 + j), hz = U.hash(x, y, 40 + j);
@@ -1061,6 +1105,7 @@ R3.draw = function(dt){
   const G = FP.G;
   if (G !== lastG){ lastG = G; resetWorld(); }
   clock += dt; uTime.value = clock;
+  perfSample(dt);
   sigTimer -= dt;
   if (sigTimer <= 0 || !prev.ground){
     sigTimer = .25;
