@@ -21,12 +21,102 @@ R.init = function(canvas, minimap){
   window.addEventListener('resize', R.resize);
 };
 R.resize = function(){
-  dpr = Math.min(2, window.devicePixelRatio || 1);
+  // celular: até 1,5× (telas de 3× gastariam 4× mais pixels por quadro sem diferença visível)
+  dpr = Math.min(FP.Mobile && FP.Mobile.touch ? 1.5 : 2, window.devicePixelRatio || 1);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
 };
 R.size = () => ({W, H});
+
+/* ---------- v7.2: cache do chão em pedaços (chunks) ---------- */
+const CH = 16, chunkCache = new Map();
+let chunkPix = 0;
+const chunkBudget = () => (FP.Mobile && FP.Mobile.touch ? 10e6 : 24e6);   // pixels guardados no total
+const TIERS = [.25, .5, 1, 2];
+function pickTier(sc){ for (const t of TIERS) if (t >= sc * .95) return t; return 2; }
+function chunkSig(G, cx, cy){
+  let h = 7;
+  const xs = cx * CH, xe = Math.min(FP.W, xs + CH), ye = Math.min(FP.H, (cy + 1) * CH);
+  for (let y = cy * CH; y < ye; y++){ let i = y * FP.W + xs; const e = y * FP.W + xe; for (; i < e; i++) h = (h * 31 + G.ground[i] * 4 + G.path[i] * 2 + G.road[i]) | 0; }
+  return h;
+}
+function getChunk(G, cx, cy, tier){
+  const key = cx + ',' + cy + ',' + tier, sig = chunkSig(G, cx, cy);
+  let c = chunkCache.get(key);
+  if (c){ chunkCache.delete(key); chunkCache.set(key, c); if (c.sig === sig) return c.cv; }
+  else {
+    const px = Math.ceil(CH * T * tier), cv = document.createElement('canvas');
+    cv.width = cv.height = px; c = {cv, px: px * px}; chunkPix += c.px; chunkCache.set(key, c);
+  }
+  c.sig = sig;
+  const gc = c.cv.getContext('2d');
+  gc.setTransform(1, 0, 0, 1, 0, 0); gc.clearRect(0, 0, c.cv.width, c.cv.height);
+  gc.setTransform(tier, 0, 0, tier, -cx * CH * T * tier, -cy * CH * T * tier);
+  gc.imageSmoothingEnabled = true;
+  const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(FP.W, x0 + CH) - 1, y1 = Math.min(FP.H, y0 + CH) - 1;
+  drawGround(gc, G, x0, y0, x1, y1, 1 / tier);
+  // libera os pedaços usados há mais tempo quando passa do limite de memória
+  while (chunkPix > chunkBudget() && chunkCache.size > 1){
+    const [k, v] = chunkCache.entries().next().value;
+    if (v === c) break;
+    chunkCache.delete(k); chunkPix -= v.px; v.cv.width = v.cv.height = 0;
+  }
+  return c.cv;
+}
+R.clearGroundCache = () => { chunkCache.forEach(v => { v.cv.width = v.cv.height = 0; }); chunkCache.clear(); chunkPix = 0; };
+function drawGround(g, G, x0, y0, x1, y1, ov){
+    // 1. terreno
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      const tid = G.ground[i];
+      g.drawImage(S.terrain(tid, Math.floor(U.hash(x, y) * 4)), x * T, y * T, T + ov, T + ov);
+    }
+    // brilho da água e margens
+    g.lineWidth = 1.2;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      if (G.ground[i] !== FP.T.agua) continue;
+      g.strokeStyle = 'rgba(230,214,160,.85)';
+      if (y > 0 && G.ground[i - FP.W] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T, y * T + .6); g.lineTo(x * T + T, y * T + .6); g.stroke(); }
+      if (y < FP.H - 1 && G.ground[i + FP.W] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T, y * T + T - .6); g.lineTo(x * T + T, y * T + T - .6); g.stroke(); }
+      if (x > 0 && G.ground[i - 1] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T + .6, y * T); g.lineTo(x * T + .6, y * T + T); g.stroke(); }
+      if (x < FP.W - 1 && G.ground[i + 1] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T + T - .6, y * T); g.lineTo(x * T + T - .6, y * T + T); g.stroke(); }
+    }
+
+    // 2. estrada
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      if (!G.road[i]) continue;
+      g.fillStyle = '#4b5158'; g.fillRect(x * T, y * T, T + ov, T + ov);
+      g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(x * T + 2, y * T + 2, 4, 3);
+    }
+    g.fillStyle = '#f2d14b';
+    const RW = FP.World;
+    for (let y = Math.max(y0, RW.ROAD_Y0); y <= Math.min(y1, RW.AVENUE_Y - 1); y++) g.fillRect((RW.ROAD_X + 1) * T - 1.5, y * T + 6, 3, 14);
+    for (let x = x0; x <= x1; x++) g.fillRect(x * T + 6, (RW.AVENUE_Y + 1) * T - 1.5, 14, 3);
+
+    // 3. caminhos
+    const pt = getPathTex();
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      if (!G.path[i]) continue;
+      g.drawImage(pt, x * T, y * T, T + ov, T + ov);
+    }
+    g.strokeStyle = '#a7966f'; g.lineWidth = 2;
+    g.beginPath();
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      if (!G.path[i]) continue;
+      const px = x * T, py = y * T;
+      if (y === 0 || !G.path[i - FP.W]){ g.moveTo(px, py + 1); g.lineTo(px + T, py + 1); }
+      if (y === FP.H - 1 || !G.path[i + FP.W]){ g.moveTo(px, py + T - 1); g.lineTo(px + T, py + T - 1); }
+      if (x === 0 || !G.path[i - 1]){ g.moveTo(px + 1, py); g.lineTo(px + 1, py + T); }
+      if (x === FP.W - 1 || !G.path[i + 1]){ g.moveTo(px + T - 1, py); g.lineTo(px + T - 1, py + T); }
+    }
+    g.stroke();
+}
+
 // Em modo 3D a conversão tela↔mundo é feita por raio contra o chão (FP.R3)
 R.screenToWorld = (sx, sy) => FP.R3 && FP.R3.active ? FP.R3.screenToWorld(sx, sy) : ({x: (sx - W / 2) / cam.zoom + cam.x, y: (sy - H / 2) / cam.zoom + cam.y});
 R.worldToScreen = (wx, wy, h) => FP.R3 && FP.R3.active ? FP.R3.worldToScreen(wx, wy, h || 0) : ({x: (wx - cam.x) * cam.zoom + W / 2, y: (wy - cam.y) * cam.zoom + H / 2});
@@ -65,57 +155,21 @@ R.draw = function(dt){
   const x1 = Math.min(FP.W - 1, Math.ceil(br.x / T) + 1), y1 = Math.min(FP.H - 1, Math.ceil(br.y / T) + 1);
   const ov = 1 / z; // sobreposição para evitar frestas
 
-  // 1. terreno
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
-    const i = y * FP.W + x;
-    const tid = G.ground[i];
-    g.drawImage(S.terrain(tid, Math.floor(U.hash(x, y) * 4)), x * T, y * T, T + ov, T + ov);
+  // 1–3. chão (terreno, margens da água, estrada e caminhos): v7.2 — vem de pedaços
+  // pré-desenhados de 16×16 tiles, refeitos só quando o chão daquele pedaço muda
+  const tier = pickTier(z * dpr);
+  const cx0 = Math.floor(x0 / CH), cy0 = Math.floor(y0 / CH), cx1 = Math.floor(x1 / CH), cy1 = Math.floor(y1 / CH);
+  for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++)
+    g.drawImage(getChunk(G, cx, cy, tier), cx * CH * T, cy * CH * T, CH * T + ov, CH * T + ov);
+  // brilho animado da água (só quando dá para ver)
+  if (z > .45){
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
+      const i = y * FP.W + x;
+      if (G.ground[i] !== FP.T.agua) continue;
+      const ph = Math.sin(time * 1.5 + x * .7 + y * 1.3);
+      if (ph > .6){ g.fillStyle = 'rgba(255,255,255,' + ((ph - .6) * .6).toFixed(2) + ')'; g.fillRect(x * T + 8 + U.hash(x, y, 2) * 12, y * T + 10 + U.hash(x, y, 3) * 12, 6, 1.4); }
+    }
   }
-  // brilho da água e margens
-  g.lineWidth = 1.2;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
-    const i = y * FP.W + x;
-    if (G.ground[i] !== FP.T.agua) continue;
-    const ph = Math.sin(time * 1.5 + x * .7 + y * 1.3);
-    if (ph > .6){ g.fillStyle = 'rgba(255,255,255,' + ((ph - .6) * .6).toFixed(2) + ')'; g.fillRect(x * T + 8 + U.hash(x, y, 2) * 12, y * T + 10 + U.hash(x, y, 3) * 12, 6, 1.4); }
-    g.strokeStyle = 'rgba(230,214,160,.85)';
-    if (y > 0 && G.ground[i - FP.W] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T, y * T + .6); g.lineTo(x * T + T, y * T + .6); g.stroke(); }
-    if (y < FP.H - 1 && G.ground[i + FP.W] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T, y * T + T - .6); g.lineTo(x * T + T, y * T + T - .6); g.stroke(); }
-    if (x > 0 && G.ground[i - 1] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T + .6, y * T); g.lineTo(x * T + .6, y * T + T); g.stroke(); }
-    if (x < FP.W - 1 && G.ground[i + 1] !== FP.T.agua){ g.beginPath(); g.moveTo(x * T + T - .6, y * T); g.lineTo(x * T + T - .6, y * T + T); g.stroke(); }
-  }
-
-  // 2. estrada
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
-    const i = y * FP.W + x;
-    if (!G.road[i]) continue;
-    g.fillStyle = '#4b5158'; g.fillRect(x * T, y * T, T + ov, T + ov);
-    g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(x * T + 2, y * T + 2, 4, 3);
-  }
-  g.fillStyle = '#f2d14b';
-  const RW = FP.World;
-  for (let y = Math.max(y0, RW.ROAD_Y0); y <= Math.min(y1, RW.AVENUE_Y - 1); y++) g.fillRect((RW.ROAD_X + 1) * T - 1.5, y * T + 6, 3, 14);
-  for (let x = x0; x <= x1; x++) g.fillRect(x * T + 6, (RW.AVENUE_Y + 1) * T - 1.5, 14, 3);
-
-  // 3. caminhos
-  const pt = getPathTex();
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
-    const i = y * FP.W + x;
-    if (!G.path[i]) continue;
-    g.drawImage(pt, x * T, y * T, T + ov, T + ov);
-  }
-  g.strokeStyle = '#a7966f'; g.lineWidth = 2;
-  g.beginPath();
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
-    const i = y * FP.W + x;
-    if (!G.path[i]) continue;
-    const px = x * T, py = y * T;
-    if (y === 0 || !G.path[i - FP.W]){ g.moveTo(px, py + 1); g.lineTo(px + T, py + 1); }
-    if (y === FP.H - 1 || !G.path[i + FP.W]){ g.moveTo(px, py + T - 1); g.lineTo(px + T, py + T - 1); }
-    if (x === 0 || !G.path[i - 1]){ g.moveTo(px + 1, py); g.lineTo(px + 1, py + T); }
-    if (x === FP.W - 1 || !G.path[i + 1]){ g.moveTo(px + T - 1, py); g.lineTo(px + T - 1, py + T); }
-  }
-  g.stroke();
   // lixo
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
     const i = y * FP.W + x, l = G.litter[i];
@@ -480,29 +534,38 @@ R.lensValue = function(e){
 };
 
 /* ---------- Minimapa ---------- */
+/* v7.2: o minimapa é montado pixel a pixel numa imagem de 160×120 (um tile = um pixel)
+   e só é redesenhado quando está visível — antes eram ~19 mil retângulos a cada meio segundo */
+let miniOff = null, miniData = null;
+const rgbCache = {};
+function rgb(hex){
+  let c = rgbCache[hex];
+  if (!c){ const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h.slice(0, 6), 16); c = rgbCache[hex] = [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  return c;
+}
+R.miniVisible = () => !!(mini && mini.offsetParent);
 R.drawMinimap = function(){
-  const G = FP.G; if (!G) return;
-  const s = mini.width / FP.W;
-  mg.fillStyle = '#1E2A2F'; mg.fillRect(0, 0, mini.width, mini.height);
-  for (let y = 0; y < FP.H; y++) for (let x = 0; x < FP.W; x++){
-    const i = y * FP.W + x;
-    let c = FP.TERRAINS[G.ground[i]].cor;
-    if (G.road[i]) c = '#4b5158';
-    if (G.path[i]) c = '#e6dcc4';
-    if (G.enc[i] >= 0) c = '#a7774a';
+  const G = FP.G; if (!G || !R.miniVisible()) return;
+  if (!miniOff){ miniOff = document.createElement('canvas'); miniOff.width = FP.W; miniOff.height = FP.H; miniData = miniOff.getContext('2d').createImageData(FP.W, FP.H); }
+  const d = miniData.data, road = rgb('#4b5158'), path = rgb('#e6dcc4'), enc = [167 * .5 + 123 * .5, 119 * .5 + 200 * .5, 74 * .5 + 108 * .5];
+  for (let i = 0, n = FP.W * FP.H; i < n; i++){
+    let c = rgb(FP.TERRAINS[G.ground[i]].cor);
+    if (G.road[i]) c = road;
+    if (G.path[i]) c = path;
+    if (G.enc[i] >= 0) c = enc;
     const o = G.obj[i];
-    if (o >= 0 && G.objects[o] && G.objects[o].kind === 'building') c = FP.BUILDINGS[G.objects[o].type].cor;
-    mg.fillStyle = c; mg.fillRect(x * s, y * s, s + .5, s + .5);
-    if (!G.owned[i] && !G.road[i]){ mg.fillStyle = 'rgba(0,0,0,.45)'; mg.fillRect(x * s, y * s, s + .5, s + .5); }
+    if (o >= 0 && G.objects[o] && G.objects[o].kind === 'building') c = rgb(FP.BUILDINGS[G.objects[o].type].cor);
+    const k = i * 4, dim = !G.owned[i] && !G.road[i] ? .55 : 1;
+    d[k] = c[0] * dim; d[k + 1] = c[1] * dim; d[k + 2] = c[2] * dim; d[k + 3] = 255;
   }
-  Object.values(G.enclosures).forEach(e => { mg.fillStyle = 'rgba(123,200,108,.5)'; e.tiles.forEach(i => mg.fillRect((i % FP.W) * s, ((i / FP.W) | 0) * s, s + .5, s + .5)); });
-  mg.fillStyle = '#F2B33D';
-  G.visitors.forEach(v => mg.fillRect(v.x * s - .5, v.y * s - .5, 1.5, 1.5));
-  R._miniImg = mg.getImageData(0, 0, mini.width, mini.height);
+  for (const v of G.visitors){ const x = v.x | 0, y = v.y | 0; if (x >= 0 && y >= 0 && x < FP.W && y < FP.H){ const k = (y * FP.W + x) * 4; d[k] = 242; d[k + 1] = 179; d[k + 2] = 61; } }
+  miniOff.getContext('2d').putImageData(miniData, 0, 0);
+  R._miniImg = miniOff;
 };
 function drawMiniCam(){
-  if (!R._miniImg) return;
-  mg.putImageData(R._miniImg, 0, 0);
+  if (!R._miniImg || !R.miniVisible()) return;
+  mg.imageSmoothingEnabled = false;
+  mg.drawImage(R._miniImg, 0, 0, mini.width, mini.height);
   const s = mini.width / FP.W / T;
   if (FP.R3 && FP.R3.active){ // em 3D: marcador do alvo da câmera + direção
     const c = FP.R3.miniInfo();

@@ -33,3 +33,13 @@ Depois de instalado, o jogo abre em tela cheia pelo ícone e funciona **sem inte
 - **Wi-Fi do campus instável**: se a rede demora mais de 4 segundos, o jogo usa a cópia guardada no aparelho.
 - **Levar o zoológico para outro aparelho**: Salvar → **Exportar / enviar arquivo** abre o "Compartilhar" (Drive, WhatsApp, e-mail). No outro aparelho, Carregar → Importar arquivo.
 - O navegador é instruído a não apagar os jogos salvos para liberar espaço.
+
+## v7.2.1: celular muito mais leve
+- **3D desenha só o que aparece na tela**: árvores, decoração, grama, cercas, meio-fios, luzes, pessoas e animais fora da tela não são mais enviados à placa de vídeo, e o terreno é desenhado só na faixa visível.
+- **Correção**: num parque sem recintos, o jogo desenhava 60 mil peças de cerca invisíveis (2,2 milhões de triângulos a cada quadro). Isso pesava em todo jogo novo.
+- **Qualidade baixa (celular)**: sem sombras, grama 3D e reflexos do céu; iluminação por vértice; terreno, árvores e animais com menos polígonos; visão até menos longe. Nova qualidade **Mínima** para aparelhos fracos, aplicada sozinha se o 3D ficar lento.
+- **2D**: o chão é pré-desenhado em pedaços de 16×16 tiles, refeitos só quando mudam (cerca de 6 vezes mais rápido). Em telas de alta densidade, o 2D usa até 1,5× de resolução.
+- **Minimapa**: cerca de 25 vezes mais rápido e não é desenhado quando está escondido. Antes travava o jogo duas vezes por segundo.
+- **Resultado medido** (celular simulado, qualidade baixa):
+  - triângulos por quadro: de 1,8–4 milhões para cerca de 250 mil;
+  - abertura do 3D: cerca de 4 vezes mais rápida.

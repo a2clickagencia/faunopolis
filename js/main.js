@@ -11,7 +11,7 @@ function frame(now){
       FP.Input.updateKeys(dt);
       if (!FP.Mobile || FP.Mobile.shouldDraw(now)){ FP.Render.draw(drawDt + dt); drawDt = 0; } else drawDt += dt;
       uiTimer -= dt;
-      if (uiTimer <= 0){ uiTimer = .5; FP.UI.tick(); }
+      if (uiTimer <= 0){ uiTimer = FP.Mobile && FP.Mobile.touch ? .8 : .5; FP.UI.tick(); }
     }
   } catch (e){
     console.error(e);

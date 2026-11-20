@@ -43,10 +43,13 @@ const uTime = {value: 0};
 R3.available = () => !!window.THREE;
 R3._dbg = () => ({scene, camera, renderer, sun, skyUni, terrainGeo});
 /* v7.2: qualidade gráfica (alta no PC; média/baixa automática em celular e tablet) */
+/* sub: subdivisões do terreno · env: reflexos do céu (PMREM) · view: alcance da visão
+   detail: detalhe dos animais esculpidos · people: pessoas desenhadas · halos: brilhos noturnos */
 const QUAL = {
-  alta:  {nome: 'Alta',  pr: 1.75, shadow: 4096, soft: true,  grass: 1,   aa: true},
-  media: {nome: 'Média', pr: 1.25, shadow: 2048, soft: false, grass: .55, aa: true},
-  baixa: {nome: 'Baixa', pr: 1,    shadow: 1024, soft: false, grass: .25, aa: false}
+  alta:   {nome: 'Alta',   pr: 1.75, shadows: true,  shadow: 4096, soft: true,  grass: 1,   aa: true,  sub: 2, env: true,  view: 1,   detail: 1,   people: 1700, halos: 400},
+  media:  {nome: 'Média',  pr: 1.25, shadows: true,  shadow: 2048, soft: false, grass: .4,  aa: true,  sub: 2, env: true,  view: .8,  detail: .8,  people: 600,  halos: 120},
+  baixa:  {nome: 'Baixa',  pr: 1,    shadows: false, shadow: 1024, soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .55, detail: .5,  people: 250,  halos: 0},
+  minima: {nome: 'Mínima', pr: .75,  shadows: false, shadow: 512,  soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .4,  detail: .42, people: 120,  halos: 0}
 };
 R3.QUAL = QUAL;
 R3.autoQuality = function(){
@@ -54,12 +57,16 @@ R3.autoQuality = function(){
   if (!coarse) return 'alta';
   const mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
   const big = Math.min(screen.width, screen.height) >= 700;
-  return big && mem >= 4 && cores >= 6 ? 'media' : 'baixa';
+  if (big && mem >= 6 && cores >= 8) return 'media';
+  // iPhone/iPad não informam a memória e limitam os núcleos informados: começam na baixa
+  if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) return 'baixa';
+  return mem <= 3 || cores <= 4 ? 'minima' : 'baixa';
 };
 R3.qualitySetting = function(){ try { return localStorage.getItem('faunopolis_qualidade') || 'auto'; } catch (e){ return 'auto'; } };
 let qLevel = null;
 function Q(){ if (!qLevel){ const s = R3.qualitySetting(); qLevel = QUAL[s] ? s : R3.autoQuality(); } return QUAL[qLevel]; }
 R3.qualityLevel = () => (Q(), qLevel);
+R3.modelDetail = () => Q().detail;
 R3.setQuality = function(setting, quiet){
   try { localStorage.setItem('faunopolis_qualidade', setting); } catch (e){}
   applyLevel(QUAL[setting] ? setting : R3.autoQuality(), quiet);
@@ -68,8 +75,11 @@ function applyLevel(level, quiet){
   const old = qLevel; qLevel = level;
   if (!R3.ok || old === level) return;
   const q = QUAL[level];
+  renderer.shadowMap.enabled = q.shadows; sun.castShadow = q.shadows;
   renderer.shadowMap.type = q.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   sun.shadow.mapSize.set(q.shadow, q.shadow);
+  if (!q.env && envRT){ scene.environment = null; envRT.dispose(); envRT = null; }
+  envHour = -99; applied.ok = false; halosApplied = -1;
   if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; }
   scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); });
   grassSig = ''; resize();
@@ -83,11 +93,22 @@ function perfSample(dt){
   perf.t += dt; perf.n++;
   if (perf.t < 5) return;
   const fps = perf.n / perf.t; perf.t = 0; perf.n = 0;
-  if (fps < 22 && qLevel !== 'baixa'){ applyLevel(qLevel === 'alta' ? 'media' : 'baixa', true); perf.warmup = 3; FP.UI.toast('O 3D estava lento: qualidade gráfica reduzida automaticamente.', 'info'); }
-  else if (fps < 14 && qLevel === 'baixa' && !perf.warned){ perf.warned = true; FP.UI.toast('Dica: se o 3D estiver lento, toque em 🗺️ e use a visão 2D, que é bem mais leve.', 'info'); }
+  const ORDER = ['alta', 'media', 'baixa', 'minima'];
+  if (fps < 24 && qLevel !== 'minima'){ applyLevel(ORDER[ORDER.indexOf(qLevel) + 1], true); perf.warmup = 3; FP.UI.toast('O 3D estava lento: qualidade gráfica reduzida automaticamente.', 'info'); }
+  else if (fps < 15 && qLevel === 'minima' && !perf.warned){ perf.warned = true; FP.UI.toast('Dica: se o 3D estiver lento, toque em 🗺️ e use a visão 2D, que é bem mais leve.', 'info'); }
+}
+/* Material: PBR (MeshStandard) nas qualidades alta/média; nas baixas, iluminação por vértice
+   (MeshLambert), muito mais leve para a placa de vídeo do celular. Escolhido ao iniciar o 3D. */
+let lowMat = false;
+const PBR_ONLY = ['roughness', 'metalness', 'envMapIntensity', 'normalMap', 'normalScale', 'roughnessMap', 'metalnessMap'];
+function PBR(p){
+  if (!lowMat) return new THREE.MeshStandardMaterial(p);
+  const q = Object.assign({}, p); PBR_ONLY.forEach(k => delete q[k]);
+  return new THREE.MeshLambertMaterial(q);
 }
 function init(){
   if (R3.ok) return true;
+  lowMat = !Q().env;
   if (!window.THREE){ FP.UI.toast('Biblioteca 3D (js/lib/three.min.js) não encontrada.', 'error'); return false; }
   M3 = FP.M3; col = M3.col; lerpC = M3.lerpC; mulC = M3.mulC;
   canvas = document.getElementById('game3d');
@@ -97,28 +118,28 @@ function init(){
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .86;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = Q().shadows;
   renderer.shadowMap.type = Q().soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(30, 1, .1, 1200);
   hemi = new THREE.HemisphereLight(0xcfe6ff, 0x4a5a3a, .35); scene.add(hemi);
   sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
-  sun.castShadow = true;
+  sun.castShadow = Q().shadows;
   sun.shadow.mapSize.set(Q().shadow, Q().shadow);
   sun.shadow.bias = -.00025; sun.shadow.normalBias = .025;
   scene.add(sun); scene.add(sun.target);
   scene.fog = new THREE.Fog(0xbfdcf0, 120, 420);
   pmrem = new THREE.PMREMGenerator(renderer);
 
-  matStd = new THREE.MeshStandardMaterial({vertexColors: true, roughness: .82, metalness: 0, envMapIntensity: .7});
-  matAnimal = new THREE.MeshStandardMaterial({vertexColors: true, roughness: .66, metalness: 0, envMapIntensity: .8});
-  matPeople = new THREE.MeshStandardMaterial({color: 0xffffff, roughness: .7, envMapIntensity: .7});
-  matWin = new THREE.MeshStandardMaterial({color: 0x9fcde8, roughness: .08, metalness: .3, emissive: 0x000000, envMapIntensity: 1.4});
+  matStd = PBR({vertexColors: true, roughness: .82, metalness: 0, envMapIntensity: .7});
+  matAnimal = PBR({vertexColors: true, roughness: .66, metalness: 0, envMapIntensity: .8});
+  matPeople = PBR({color: 0xffffff, roughness: .7, envMapIntensity: .7});
+  matWin = PBR({color: 0x9fcde8, roughness: .08, metalness: .3, emissive: 0x000000, envMapIntensity: 1.4});
   matGlow = new THREE.MeshBasicMaterial({color: 0xfff1b0, toneMapped: false});
   matLine = new THREE.MeshBasicMaterial({color: 0xfff4de, transparent: true, opacity: .55});
-  matFence = new THREE.MeshStandardMaterial({color: col('#9a6c42'), roughness: .9, map: woodTex()});
-  matPost = new THREE.MeshStandardMaterial({color: col('#6a4a2c'), roughness: .9, map: woodTex()});
-  matCurb = new THREE.MeshStandardMaterial({color: col('#c9c2b0'), roughness: .85});
+  matFence = PBR({color: col('#9a6c42'), roughness: .9, map: woodTex()});
+  matPost = PBR({color: col('#6a4a2c'), roughness: .9, map: woodTex()});
+  matCurb = PBR({color: col('#c9c2b0'), roughness: .85});
   // poças de luz no chão (noite)
   const pc = document.createElement('canvas'); pc.width = pc.height = 128;
   const pg = pc.getContext('2d'); const gr = pg.createRadialGradient(64, 64, 4, 64, 64, 64);
@@ -368,7 +389,7 @@ R3.labelDetail = () => R3.mode === 'visitante' ? 1 : U.clamp((70 - C.dist) / 50,
 R3.miniInfo = () => ({x: C.tx, y: C.ty, yaw: C.yaw});
 
 /* =============== CONSTRUÇÃO DA CENA =============== */
-const SUB = 2;                // subdivisões do terreno por tile
+let SUB = 2;                  // subdivisões do terreno por tile (1 nas qualidades baixas; definido ao iniciar o 3D)
 const WATER_Y = -.1;          // nível da água
 let terrainMesh, terrainGeo, waterMesh, pathMesh, roadMesh, curbMesh, grassMesh, lineMesh, fenceMesh, postMesh, ownedLineMesh, overlayMesh, overlayCanvas, overlayCtx, overlayTex;
 let decoGroup, bldGroup, signGroup, animalGroup, carGroup, haloGroup;
@@ -378,6 +399,7 @@ const prev = {};
 const OVS = 6;
 let waterNormal;
 function buildStatic(){
+  SUB = Q().sub;
   // --- terreno contínuo ---
   const VW = FP.W * SUB + 1, VH = FP.H * SUB + 1;
   terrainGeo = new THREE.BufferGeometry();
@@ -395,40 +417,40 @@ function buildStatic(){
   terrainGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   terrainGeo.setIndex(new THREE.BufferAttribute(idx, 1));
   const detail = canvasTex(256, (g, s) => { g.drawImage(noiseCanvas(256, 9, 4, 3), 0, 0); const img = g.getImageData(0, 0, s, s), d = img.data; for (let k = 0; k < d.length; k += 4){ const v = 232 + (d[k] / 255 - .5) * 70 + (Math.random() - .5) * 26; d[k] = d[k + 1] = d[k + 2] = Math.max(0, Math.min(255, v)); } g.putImageData(img, 0, 0); }, false, true);
-  matTerrain = new THREE.MeshStandardMaterial({vertexColors: true, map: detail, roughness: .95, metalness: 0, envMapIntensity: .5});
+  matTerrain = PBR({vertexColors: true, map: detail, roughness: .95, metalness: 0, envMapIntensity: .5});
   terrainMesh = new THREE.Mesh(terrainGeo, matTerrain);
   terrainMesh.receiveShadow = true; terrainMesh.frustumCulled = false;
   scene.add(terrainMesh);
   // --- água refletiva animada ---
   waterNormal = normalFromHeight(noiseCanvas(256, 4, 4, 21), 2.6);
   waterNormal.repeat.set(FP.W / 3, FP.H / 3);
-  matWater = new THREE.MeshStandardMaterial({color: col('#2a86b8'), roughness: .06, metalness: .05, transparent: true, opacity: .8, normalMap: waterNormal, normalScale: new THREE.Vector2(.35, .35), envMapIntensity: 1.25});
+  matWater = PBR({color: col('#2a86b8'), roughness: .06, metalness: .05, transparent: true, opacity: .8, normalMap: waterNormal, normalScale: new THREE.Vector2(.35, .35), envMapIntensity: 1.25});
   waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(FP.W, FP.H), matWater);
   waterMesh.rotation.x = -Math.PI / 2; waterMesh.position.set(FP.W / 2, WATER_Y, FP.H / 2); waterMesh.receiveShadow = true;
   scene.add(waterMesh);
   // --- caminhos e estradas ---
   const pv = paverTextures();
-  matPath = new THREE.MeshStandardMaterial({map: pv.map, normalMap: pv.normal, normalScale: new THREE.Vector2(.9, .9), roughness: .88, envMapIntensity: .6, polygonOffset: true, polygonOffsetFactor: -1});
+  matPath = PBR({map: pv.map, normalMap: pv.normal, normalScale: new THREE.Vector2(.9, .9), roughness: .88, envMapIntensity: .6, polygonOffset: true, polygonOffsetFactor: -1});
   const as = asphaltTextures();
-  matRoad = new THREE.MeshStandardMaterial({map: as.map, normalMap: as.normal, normalScale: new THREE.Vector2(.5, .5), roughness: .92, envMapIntensity: .4, polygonOffset: true, polygonOffsetFactor: -1});
+  matRoad = PBR({map: as.map, normalMap: as.normal, normalScale: new THREE.Vector2(.5, .5), roughness: .92, envMapIntensity: .4, polygonOffset: true, polygonOffsetFactor: -1});
   pathMesh = new THREE.Mesh(new THREE.BufferGeometry(), matPath); pathMesh.receiveShadow = true; pathMesh.frustumCulled = false; scene.add(pathMesh);
   roadMesh = new THREE.Mesh(new THREE.BufferGeometry(), matRoad); roadMesh.receiveShadow = true; roadMesh.frustumCulled = false; scene.add(roadMesh);
   curbMesh = new THREE.InstancedMesh(M3.S.rbox(1, .07, .1, .025, 1), matCurb, 24000);
   curbMesh.receiveShadow = true; curbMesh.castShadow = true; curbMesh.frustumCulled = false; curbMesh.count = 0; scene.add(curbMesh);
   // faixas da estrada
-  lineMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({color: col('#f2d14b'), roughness: .6}), 600);
-  lineMesh.frustumCulled = false; scene.add(lineMesh);
+  lineMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), PBR({color: col('#f2d14b'), roughness: .6}), 600);
+  lineMesh.frustumCulled = false; lineMesh.count = 0; scene.add(lineMesh);
   // --- grama instanciada com vento ---
   buildGrass();
   // --- cercas ---
   const rail = new THREE.CylinderGeometry(.028, .028, 1, 8); rail.rotateZ(Math.PI / 2);
   fenceMesh = new THREE.InstancedMesh(rail, matFence, 40000);
-  fenceMesh.castShadow = true; fenceMesh.receiveShadow = true; fenceMesh.frustumCulled = false; scene.add(fenceMesh);
+  fenceMesh.castShadow = true; fenceMesh.receiveShadow = true; fenceMesh.frustumCulled = false; fenceMesh.count = 0; scene.add(fenceMesh);
   const postG = M3.S.lathe('fpost', [[0, 0], [.055, 0], [.05, .88], [.035, .96], [0, .98]], 10);
   postMesh = new THREE.InstancedMesh(postG, matPost, 20000);
-  postMesh.castShadow = true; postMesh.receiveShadow = true; postMesh.frustumCulled = false; scene.add(postMesh);
+  postMesh.castShadow = true; postMesh.receiveShadow = true; postMesh.frustumCulled = false; postMesh.count = 0; scene.add(postMesh);
   ownedLineMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), matLine, 4000);
-  ownedLineMesh.frustumCulled = false; scene.add(ownedLineMesh);
+  ownedLineMesh.frustumCulled = false; ownedLineMesh.count = 0; scene.add(ownedLineMesh);
   // --- sobreposição das ferramentas ---
   overlayCanvas = document.createElement('canvas'); overlayCanvas.width = FP.W * OVS; overlayCanvas.height = FP.H * OVS;
   overlayCtx = overlayCanvas.getContext('2d');
@@ -439,8 +461,8 @@ function buildStatic(){
   scene.add(overlayMesh);
   decoGroup = new THREE.Group(); bldGroup = new THREE.Group(); signGroup = new THREE.Group(); animalGroup = new THREE.Group(); carGroup = new THREE.Group(); haloGroup = new THREE.Group();
   scene.add(decoGroup, bldGroup, signGroup, animalGroup, carGroup, haloGroup);
-  bulbMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.075, 12, 8), matGlow, 3000); bulbMesh.frustumCulled = false; scene.add(bulbMesh);
-  poolMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), matPool, 3000); poolMesh.frustumCulled = false; poolMesh.renderOrder = 5; scene.add(poolMesh);
+  bulbMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(.075, 12, 8), matGlow, 3000); bulbMesh.frustumCulled = false; bulbMesh.count = 0; scene.add(bulbMesh);
+  poolMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), matPool, 3000); poolMesh.frustumCulled = false; poolMesh.renderOrder = 5; poolMesh.count = 0; scene.add(poolMesh);
   // --- pessoas (instanciadas) ---
   const P = 1700, pg = M3.personGeos();
   const im = (g, n, mat) => { const m = new THREE.InstancedMesh(g, mat || matPeople, n); withColors(m); m.castShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); return m; };
@@ -451,7 +473,7 @@ function buildStatic(){
 function withColors(m){ const n = m.instanceMatrix.count; m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); m.instanceColor.setUsage(THREE.DynamicDrawUsage); }
 let lastG = null;
 function resetWorld(){
-  prev.ground = null; decoSig = ''; encSig = ''; signKey = ''; grassSig = '';
+  prev.ground = null; decoSig = '-'; encSig = '-'; signKey = '-'; grassSig = '-';
   animalObjs.forEach(o => animalGroup.remove(o.g)); animalObjs.clear();
 }
 
@@ -603,13 +625,13 @@ function rebuildPaths(G){
     if (!isP(x - 1, y)){ V3.set(x + .04, 0, y + .5); S3.set(1, 1, 1); M4.compose(V3, qr, S3); curbMesh.setMatrixAt(k++, M4); }
     if (!isP(x + 1, y)){ V3.set(x + .96, 0, y + .5); S3.set(1, 1, 1); M4.compose(V3, qr, S3); curbMesh.setMatrixAt(k++, M4); }
   });
-  curbMesh.count = k; curbMesh.instanceMatrix.needsUpdate = true;
+  curbMesh.count = k; curbMesh.instanceMatrix.needsUpdate = true; stash(curbMesh);
   // faixas
   const RW = FP.World; let l = 0;
   const add = (x, y, z, w, h, d) => { V3.set(x, y, z); S3.set(w, h, d); M4.compose(V3, Q0, S3); lineMesh.setMatrixAt(l++, M4); };
   for (let y = RW.ROAD_Y0; y < RW.AVENUE_Y - 1; y++) add(RW.ROAD_X + 1, .025, y + .5, .07, .01, .45);
   for (let x = 0; x < FP.W; x++) add(x + .5, .025, RW.AVENUE_Y + 1, .45, .01, .07);
-  lineMesh.count = l; lineMesh.instanceMatrix.needsUpdate = true;
+  lineMesh.count = l; lineMesh.instanceMatrix.needsUpdate = true; stash(lineMesh);
 }
 function rebuildOwnedLine(G){
   mats();
@@ -625,7 +647,7 @@ function rebuildOwnedLine(G){
       if (!Wd.chunkOwned(G, cx + 1, cy)) add(X + ch, Y + s + .5, .05, .7);
     }
   }
-  ownedLineMesh.count = k; ownedLineMesh.instanceMatrix.needsUpdate = true;
+  ownedLineMesh.count = k; ownedLineMesh.instanceMatrix.needsUpdate = true; stash(ownedLineMesh);
 }
 
 /* ---------------- Grama (instâncias com vento) ---------------- */
@@ -669,6 +691,7 @@ function buildGrass(){
 let grassSig = '';
 function rebuildGrass(G){
   mats();
+  if (!Q().grass){ grassMesh.count = 0; stash(grassMesh); return; }
   const PAL = {[FP.T.grama]: ['#5d9a3c', '#86c254', 7], [FP.T.savana]: ['#b09a44', '#e2cf78', 6], [FP.T.floresta]: ['#356a2e', '#5aa04a', 5], [FP.T.cerrado]: ['#8a7f3a', '#b9a656', 3], [FP.T.lama]: ['#556a38', '#7a8f4a', 2], [FP.T.mistico]: ['#7a5ac8', '#c8a8ff', 3], [FP.T.neve]: ['#c8d8de', '#f4fbff', 0]};
   let k = 0; const max = grassMesh.instanceMatrix.count, c = new THREE.Color(), q = new THREE.Quaternion(), ax = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < FP.W * FP.H && k < max - 6; i++){
@@ -691,6 +714,7 @@ function rebuildGrass(G){
     }
   }
   grassMesh.count = k; grassMesh.instanceMatrix.needsUpdate = true; grassMesh.instanceColor.needsUpdate = true;
+  stash(grassMesh);
 }
 
 /* ---------------- Cercas ---------------- */
@@ -714,6 +738,7 @@ function rebuildFences(G){
   posts.forEach(s => { if (p >= maxP) return; const [x, y] = s.split(','); V3.set(Math.min(FP.W - .04, Math.max(.04, +x)), 0, Math.min(FP.H - .04, Math.max(.04, +y))); S3.set(1, 1, 1); M4.compose(V3, Q0, S3); postMesh.setMatrixAt(p++, M4); });
   fenceMesh.count = k; postMesh.count = p;
   fenceMesh.instanceMatrix.needsUpdate = true; postMesh.instanceMatrix.needsUpdate = true;
+  stash(fenceMesh); stash(postMesh);
 }
 
 /* ---------------- Vegetação, decoração e brinquedos ---------------- */
@@ -749,15 +774,82 @@ function rebuildDecos(G){
     });
     Q0.set(0, 0, 0, 1);
     im.frustumCulled = false;
-    decoGroup.add(im); decoMeshes.push(im);
+    decoGroup.add(im); decoMeshes.push(im); stash(im);
   });
-  bulbs.forEach((b, i) => { if (i >= 3000) return; V3.set(b[0], b[1], b[2]); S3.set(1, 1, 1); M4.compose(V3, Q0, S3); bulbMesh.setMatrixAt(i, M4); if (i < 400){ const s = new THREE.Sprite(matHalo); s.position.set(b[0], b[1], b[2]); s.scale.set(1.1, 1.1, 1.1); haloGroup.add(s); halos.push(s); } });
+  bulbs.forEach((b, i) => { if (i >= 3000) return; V3.set(b[0], b[1], b[2]); S3.set(1, 1, 1); M4.compose(V3, Q0, S3); bulbMesh.setMatrixAt(i, M4); if (i < Q().halos){ const s = new THREE.Sprite(matHalo); s.position.set(b[0], b[1], b[2]); s.scale.set(1.1, 1.1, 1.1); haloGroup.add(s); halos.push(s); } });
   bulbMesh.count = Math.min(3000, bulbs.length); bulbMesh.instanceMatrix.needsUpdate = true;
   const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   pools.forEach((p, i) => { if (i >= 3000) return; V3.set(p[0], .06, p[1]); S3.set(p[2], p[2], 1); M4.compose(V3, qx, S3); poolMesh.setMatrixAt(i, M4); });
   poolMesh.count = Math.min(3000, pools.length); poolMesh.instanceMatrix.needsUpdate = true;
+  stash(bulbMesh); stash(poolMesh); halosApplied = -1;
 }
 let _upV; function _up(){ return _upV || (_upV = new THREE.Vector3(0, 1, 0)); }
+
+/* ---------------- v7.2: desenhar só o que está na tela ----------------
+   A cada quadro calcula a área do chão vista pela câmera (até a neblina). As malhas
+   instanciadas (árvores, decoração, grama, cercas, meio-fios, luzes) guardam a lista
+   completa e enviam à placa de vídeo só as instâncias dessa área, refeita quando a
+   câmera sai da área já preparada. O terreno é desenhado só na faixa de linhas visível. */
+const VIEW = {x0: 0, y0: 0, x1: 0, y1: 0};
+const applied = {ok: false, x0: 0, y0: 0, x1: 0, y1: 0};
+let halosApplied = -1, _vr, _vn, _vp;
+function stash(im){
+  const n = im.count;
+  im.userData.all = {n, m: im.instanceMatrix.array.slice(0, n * 16), c: im.instanceColor ? im.instanceColor.array.slice(0, n * 3) : null};
+  if (applied.ok) cullInst(im);
+}
+function cullInst(im){
+  const a = im.userData.all; if (!a) return;
+  const dm = im.instanceMatrix.array, dc = a.c ? im.instanceColor.array : null;
+  const x0 = applied.x0, x1 = applied.x1, y0 = applied.y0, y1 = applied.y1;
+  let k = 0;
+  for (let i = 0; i < a.n; i++){
+    const x = a.m[i * 16 + 12], z = a.m[i * 16 + 14];
+    if (x < x0 || x > x1 || z < y0 || z > y1) continue;
+    dm.set(a.m.subarray(i * 16, i * 16 + 16), k * 16);
+    if (dc) dc.set(a.c.subarray(i * 3, i * 3 + 3), k * 3);
+    k++;
+  }
+  im.count = k; im.instanceMatrix.needsUpdate = true;
+  if (dc) im.instanceColor.needsUpdate = true;
+}
+const inView = (x, y, m) => x > applied.x0 - m && x < applied.x1 + m && y > applied.y0 - m && y < applied.y1 + m;
+R3.viewInfo = () => ({view: Object.assign({}, VIEW), applied: Object.assign({}, applied)});
+function computeView(){
+  if (!_vr){ _vr = new THREE.Raycaster(); _vn = new THREE.Vector2(); _vp = new THREE.Vector3(); }
+  camera.updateMatrixWorld();
+  const far = scene.fog.far;
+  let x0 = camera.position.x, x1 = x0, y0 = camera.position.z, y1 = y0;
+  for (let i = 0; i < 9; i++){
+    _vn.set(i % 3 - 1, ((i / 3) | 0) - 1); _vr.setFromCamera(_vn, camera);
+    const o = _vr.ray.origin, d = _vr.ray.direction;
+    const hd = Math.hypot(d.x, d.z) || 1e-6;
+    let t = d.y < -1e-4 ? -o.y / d.y : Infinity;
+    t = Math.min(t, far / hd);
+    _vp.copy(d).multiplyScalar(t).add(o);
+    x0 = Math.min(x0, _vp.x); x1 = Math.max(x1, _vp.x); y0 = Math.min(y0, _vp.z); y1 = Math.max(y1, _vp.z);
+  }
+  // margem para objetos altos (árvores, prédios) que entram na tela por baixo
+  VIEW.x0 = Math.max(-2, x0 - 3); VIEW.x1 = Math.min(FP.W + 2, x1 + 3); VIEW.y0 = Math.max(-2, y0 - 3); VIEW.y1 = Math.min(FP.H + 2, y1 + 4);
+}
+function updateView(){
+  computeView();
+  const A = applied, V = VIEW;
+  const inside = A.ok && V.x0 >= A.x0 && V.x1 <= A.x1 && V.y0 >= A.y0 && V.y1 <= A.y1;
+  const tooBig = A.ok && (A.x1 - A.x0) * (A.y1 - A.y0) > 2.6 * Math.max(40, (V.x1 - V.x0) * (V.y1 - V.y0));
+  if (!inside || tooBig){
+    // prepara uma área um pouco maior, para não refazer a cada passo da câmera
+    const mx = Math.max(4, (V.x1 - V.x0) * .18), my = Math.max(4, (V.y1 - V.y0) * .18);
+    A.x0 = V.x0 - mx; A.x1 = V.x1 + mx; A.y0 = V.y0 - my; A.y1 = V.y1 + my; A.ok = true;
+    [grassMesh, fenceMesh, postMesh, curbMesh, lineMesh, ownedLineMesh, bulbMesh, poolMesh].concat(decoMeshes).forEach(cullInst);
+    halos.forEach(h => h.visible = inView(h.position.x, h.position.z, 0));
+    halosApplied = halos.length;
+    // terreno: só a faixa de linhas visível (o índice está organizado por linhas)
+    const qw = (FP.W * SUB) * 6;
+    const r0 = U.clamp(Math.floor(A.y0 * SUB), 0, FP.H * SUB), r1 = U.clamp(Math.ceil(A.y1 * SUB), 0, FP.H * SUB);
+    terrainGeo.setDrawRange(r0 * qw, Math.max(0, r1 - r0) * qw);
+  } else if (halosApplied !== halos.length){ halos.forEach(h => h.visible = inView(h.position.x, h.position.z, 0)); halosApplied = halos.length; }
+}
 
 /* ---------------- Instalações ---------------- */
 function textTex(lines, w, h, bg, fg, border){
@@ -865,7 +957,7 @@ function makeBuilding(type){
   if (g2){ const m2 = new THREE.Mesh(g2, matWin); m2.castShadow = false; grp.add(m2); }
   if (type === 'entrada'){
     const tex = textTex([{t: 'FAUNÓPOLIS', s: 74, b: true}], 640, 110, '#F2B33D', '#1E2A2F');
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(w - .7, .46), new THREE.MeshStandardMaterial({map: tex, roughness: .6}));
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(w - .7, .46), PBR({map: tex, roughness: .6}));
     pl.position.set(0, 2.06, .06); grp.add(pl);
   }
   if (icon){ const s = iconSprite(b.icone, b.cor); s.position.set(0, hgt + .45, 0); grp.add(s); }
@@ -903,7 +995,7 @@ function rebuildSigns(G){
     const m = new THREE.Mesh(mb.geo(), matStd); m.castShadow = true; grp.add(m);
     const sub = sps.length ? sps.slice(0, 3).map(sp => FP.SPECIES[sp].nome).join(' · ') : 'vazio';
     const tex = textTex([{t: e.name, s: 50, b: true, y: 54}, {t: sub, s: 30, y: 116}], 440, 170, '#1F6B4A', '#FFF4DE', '#FFF4DE');
-    const pm = new THREE.MeshStandardMaterial({map: tex, roughness: .7});
+    const pm = PBR({map: tex, roughness: .7});
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(.98, .46), pm);
     pl.position.set(0, 1.07, .04); grp.add(pl);
     const back = pl.clone(); back.rotation.y = Math.PI; back.position.z = -.04; grp.add(back);
@@ -933,11 +1025,12 @@ function updateAnimals(G, dt){
   G.animals.forEach(a => {
     if (a.quar) return;
     seen.add(a.id);
+    if (!inView(a.x, a.y, 2)){ const oo = animalObjs.get(a.id); if (oo){ oo.g.visible = false; oo.x = a.x; oo.y = a.y; } return; }
     const sp = FP.SPECIES[a.sp];
     const sexKey = (sp.vis.juba || sp.vis.galhada) ? a.sex : 'X';
     let o = animalObjs.get(a.id);
     if (!o || o.key !== a.sp + sexKey){
-      if (!M3.hasModel(a.sp, sexKey)){ if (built >= 2) return; built++; }
+      if (!M3.hasModel(a.sp, sexKey)){ if (built >= (Q().env ? 2 : 1)) return; built++; }
       if (o) animalGroup.remove(o.g);
       o = makeAnimalObj(M3.animalModel(a.sp, sexKey)); o.key = a.sp + sexKey; o.ph = Math.random() * 6;
       animalGroup.add(o.g); animalObjs.set(a.id, o);
@@ -957,6 +1050,7 @@ function updateAnimals(G, dt){
     if (flying) y += .9 + Math.sin(clock * 3 + a.id) * .12;
     if (playing) y += Math.abs(Math.sin((a.playT || 0) * 6)) * .22 * sc;
     if (moving && !flying) y += Math.abs(Math.sin(o.ph)) * .012;
+    o.g.visible = true;
     o.g.position.set(o.x, y, o.y);
     o.g.rotation.y = o.hr + (playing ? Math.sin((a.playT || 0) * 3) * .5 : 0);
     o.g.scale.set(sc, sc, sc);
@@ -987,8 +1081,9 @@ function updatePeople(G){
   if (!PC){ PC = new THREE.Color(); _q2 = new THREE.Quaternion(); _ax = _up(); _sv = new THREE.Vector3(); }
   mats();
   const list = [];
-  G.visitors.forEach(v => { if (R3.mode === 'visitante' && v === follow.visitor) return; list.push([v.x, v.y, v.h, v.shirt, v.skin, v.hair, v.kid, v.ft, v.id || 0]); });
-  G.staff.forEach(s => list.push([s.x, s.y, s.h, FP.STAFF[s.role].cor, '#e0ac85', '#3a2a1a', false, s.ft || 0, s.id || 7]));
+  const maxP = Q().people;
+  G.staff.forEach(s => { if (inView(s.x, s.y, 1)) list.push([s.x, s.y, s.h, FP.STAFF[s.role].cor, '#e0ac85', '#3a2a1a', false, s.ft || 0, s.id || 7]); });
+  for (const v of G.visitors){ if (list.length >= maxP) break; if (R3.mode === 'visitante' && v === follow.visitor) continue; if (inView(v.x, v.y, 1)) list.push([v.x, v.y, v.h, v.shirt, v.skin, v.hair, v.kid, v.ft, v.id || 0]); }
   const n = Math.min(list.length, pTorso.instanceMatrix.count);
   for (let i = 0; i < n; i++){
     const [x, y, h, shirt, skin, hair, kid, ft, id] = list[i];
@@ -1026,7 +1121,7 @@ let cars = [];
 function buildCars(){
   const cores = ['#e8574b', '#2E8FB8', '#F2B33D', '#eeeeee', '#1F6B4A', '#7a4ab8', '#333a40', '#f49ac1'];
   for (let i = 0; i < 12; i++){
-    const m = new THREE.Mesh(M3.carGeo(cores[i % cores.length]), new THREE.MeshStandardMaterial({vertexColors: true, roughness: .25, metalness: .35, envMapIntensity: 1.2}));
+    const m = new THREE.Mesh(M3.carGeo(cores[i % cores.length]), PBR({vertexColors: true, roughness: .25, metalness: .35, envMapIntensity: 1.2}));
     m.castShadow = true; m.scale.set(1.6, 1.6, 1.6);
     carGroup.add(m);
     cars.push({m, x: Math.random() * FP.W, dir: i % 2 ? 1 : -1, v: 3 + Math.random() * 3});
@@ -1091,7 +1186,8 @@ function updateLighting(G){
   const ext = U.clamp(C.dist * .9, 14, 80);
   const sc = sun.shadow.camera;
   if (sc.right !== ext){ sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = 260; sc.updateProjectionMatrix(); }
-  updateEnv(Math.round(hr * 2) / 2);
+  if (Q().env) updateEnv(Math.round(hr * 2) / 2);
+  else hemi.intensity = 1.25 * (1 - d * .7);
   matGlow.color.setRGB(.6 + d * .5, .55 + d * .45, .42 + d * .3);
   matPool.opacity = d * .8; matHalo.opacity = d * .7;
   matWin.emissive.setRGB(d * .9, d * .7, d * .3);
@@ -1131,7 +1227,10 @@ R3.draw = function(dt){
   }
   if (Math.abs(camera.fov - C.fov) > .01) camera.fov = C.fov;
   camera.near = R3.mode === 'visitante' ? .04 : Math.max(.08, C.dist * .015); camera.far = 1500; camera.updateProjectionMatrix();
-  scene.fog.near = R3.mode === 'visitante' ? 30 : C.dist * 2 + 25; scene.fog.far = R3.mode === 'visitante' ? 160 : C.dist * 7 + 160;
+  const vq = Q().view;
+  scene.fog.near = (R3.mode === 'visitante' ? 30 : C.dist * 2 + 25) * vq; scene.fog.far = (R3.mode === 'visitante' ? 160 : C.dist * 7 + 160) * vq;
+  if (vq < 1){ camera.far = scene.fog.far + 30; camera.updateProjectionMatrix(); }
+  updateView();
   skyMesh.position.copy(camera.position);
   FP.Cam.x = C.syncX = C.tx * T; FP.Cam.y = C.syncY = C.ty * T;
   // água em movimento

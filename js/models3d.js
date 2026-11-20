@@ -120,10 +120,13 @@ function weld(geo){
   g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
+/* v7.2: nas qualidades baixas (celular), as formas básicas usam menos segmentos */
+const LOW = () => FP.R3 && FP.R3.modelDetail && FP.R3.modelDetail() <= .6;
+const segs = (n, min) => LOW() ? Math.max(min || 5, Math.round(n * .6)) : n;
 const S = M3.S = {
-  sphere: (ws, hs) => cached('sph' + ws + '_' + hs, () => new THREE.SphereGeometry(1, ws || 16, hs || 12)),
+  sphere: (ws, hs) => { ws = segs(ws || 16, 6); hs = segs(hs || 12, 4); return cached('sph' + ws + '_' + hs, () => new THREE.SphereGeometry(1, ws, hs)); },
   /* bolha orgânica (copas, pedras, arbustos) */
-  blob: (detail, amp, seed, freq, flat) => cached(`blob${detail}_${amp}_${seed}_${freq}_${flat}`, () => {
+  blob: (detail, amp, seed, freq, flat) => (detail = LOW() ? Math.max(1, detail - 1) : detail, cached(`blob${detail}_${amp}_${seed}_${freq}_${flat}`, () => {
     const g = weld(new THREE.IcosahedronGeometry(1, detail));
     const P = g.attributes.position;
     for (let k = 0; k < P.count; k++){
@@ -135,11 +138,11 @@ const S = M3.S = {
       P.setXYZ(k, x, y, z);
     }
     g.computeVertexNormals(); return g;
-  }),
-  cyl: (rt, rb, h, seg, open) => cached(`cyl${rt}_${rb}_${h}_${seg}_${open}`, () => { const g = new THREE.CylinderGeometry(rt, rb, h, seg || 10, 1, !!open); g.translate(0, h / 2, 0); return g; }),
-  cone: (r, h, seg) => cached(`cone${r}_${h}_${seg}`, () => { const g = new THREE.ConeGeometry(r, h, seg || 10); g.translate(0, h / 2, 0); return g; }),
+  })),
+  cyl: (rt, rb, h, seg, open) => (seg = segs(seg || 10, 5), cached(`cyl${rt}_${rb}_${h}_${seg}_${open}`, () => { const g = new THREE.CylinderGeometry(rt, rb, h, seg || 10, 1, !!open); g.translate(0, h / 2, 0); return g; })),
+  cone: (r, h, seg) => (seg = segs(seg || 10, 4), cached(`cone${r}_${h}_${seg}`, () => { const g = new THREE.ConeGeometry(r, h, seg); g.translate(0, h / 2, 0); return g; })),
   torus: (R, r, rs, ts) => cached(`tor${R}_${r}_${rs}_${ts}`, () => new THREE.TorusGeometry(R, r, rs || 10, ts || 24)),
-  lathe: (key, prof, seg) => cached('lathe' + key, () => { const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.max(0, r), y)), seg || 16); g.computeVertexNormals(); return g; }),
+  lathe: (key, prof, seg) => cached('lathe' + key, () => { const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.max(0, r), y)), segs(seg || 16, 6)); g.computeVertexNormals(); return g; }),
   /* caixa com cantos arredondados */
   rbox: (w, h, d, r, seg) => cached(`rbox${w}_${h}_${d}_${r}_${seg}`, () => {
     seg = seg || 3;
@@ -155,7 +158,7 @@ const S = M3.S = {
     const out = weld(g.toNonIndexed()); out.translate(0, h / 2, 0); return out;
   }),
   /* tubo ao longo de pontos com raio variável */
-  tube: (key, pts, radii, seg, caps) => cached('tube' + key, () => tubeGeo(pts, radii, seg || 8, caps !== false)),
+  tube: (key, pts, radii, seg, caps) => cached('tube' + key, () => tubeGeo(pts, radii, segs(seg || 8, 5), caps !== false)),
   quad: () => cached('quad', () => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); return g; })
 };
 function tubeGeo(pts, radii, seg, caps){
@@ -927,10 +930,12 @@ M3.animalModel = function(spId, sexKey){
   const sp = FP.SPECIES[spId], v = sp.vis;
   const B = {quad: buildQuad, elefante: buildEleph, reptil: buildRept, ave: buildBird, pinguim: buildPeng, casco: buildShell, primata: buildPrim, grifo: buildGrif, dragao: buildDrag, foca: buildSeal, cobra: buildSnake};
   const r = (B[v.tipo] || buildQuad)(v, sexKey === 'X' ? 'M' : sexKey, spId);
-  const res = Math.round(U.clamp(40 + v.L * .4, 46, 64));
+  // v7.2: no celular, a malha é extraída numa grade menor (o custo cresce com o cubo da resolução)
+  const det = FP.R3 && FP.R3.modelDetail ? FP.R3.modelDetail() : 1;
+  const res = Math.max(26, Math.round(U.clamp(40 + v.L * .4, 46, 64) * det));
   const out = {body: r.sdf.mesh(res), limbs: [], wings: null, legLen: r.legLen / T * 1.12, waddle: r.waddle, slide: r.slide, low: r.low};
-  r.limbs.forEach(l => out.limbs.push({geo: l.sdf.mesh(26), x: l.px / T * 1.12, y: l.py / T * 1.12, z: l.pz / T * 1.12, phase: l.phase, amp: l.amp, axis: l.axis || 'z', arm: l.arm}));
-  if (r.wingsAt){ const w = r.wingsAt; out.wings = {L: wingSDF(w, 1).mesh(30), R: wingSDF(w, -1).mesh(30), x: w.x / T * 1.12, y: w.y / T * 1.12, z: w.z / T * 1.12 * .6}; }
+  r.limbs.forEach(l => out.limbs.push({geo: l.sdf.mesh(Math.max(14, Math.round(26 * det))), x: l.px / T * 1.12, y: l.py / T * 1.12, z: l.pz / T * 1.12, phase: l.phase, amp: l.amp, axis: l.axis || 'z', arm: l.arm}));
+  if (r.wingsAt){ const w = r.wingsAt; const wr = Math.max(16, Math.round(30 * det)); out.wings = {L: wingSDF(w, 1).mesh(wr), R: wingSDF(w, -1).mesh(wr), x: w.x / T * 1.12, y: w.y / T * 1.12, z: w.z / T * 1.12 * .6}; }
   modelCache.set(key, out);
   return out;
 };

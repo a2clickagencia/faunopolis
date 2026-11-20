@@ -149,7 +149,7 @@ UI.pauseMenu = function(){
       ${FP.Save.desktop ? '<button class="btn" id="pm-folder" title="' + esc(FP.Save.saveDir()) + '">🗂️ Abrir pasta dos jogos salvos</button>' : ''}
       ${FP.Mobile && FP.Mobile.canInstall() ? '<button class="btn" id="pm-install">📲 Instalar o jogo (funciona sem internet)</button>' : ''}
       ${FP.Mobile && FP.Mobile.canFullscreen() ? '<button class="btn" id="pm-full">⛶ Tela cheia</button>' : ''}
-      <label class="row-inline">🎨 Gráficos 3D <select id="pm-qual">${['auto', 'alta', 'media', 'baixa'].map(q => `<option value="${q}" ${FP.R3.qualitySetting() === q ? 'selected' : ''}>${q === 'auto' ? 'Automático (' + FP.R3.QUAL[FP.R3.qualityLevel()].nome.toLowerCase() + ')' : FP.R3.QUAL[q].nome}</option>`).join('')}</select></label>
+      <label class="row-inline">🎨 Gráficos 3D <select id="pm-qual">${['auto', 'alta', 'media', 'baixa', 'minima'].map(q => `<option value="${q}" ${FP.R3.qualitySetting() === q ? 'selected' : ''}>${q === 'auto' ? 'Automático (' + FP.R3.QUAL[FP.R3.qualityLevel()].nome.toLowerCase() + ')' : FP.R3.QUAL[q].nome}</option>`).join('')}</select></label>
       <label class="row-inline"><input type="checkbox" id="pm-bat" ${FP.Mobile && FP.Mobile.battery() ? 'checked' : ''}> 🔋 Economia de bateria (30 quadros/s)</label>
       <label class="row-inline">🔊 Volume <input type="range" id="pm-vol" min="0" max="1" step="0.05" value="${FP.Audio.volume}"></label>
       <label class="row-inline"><input type="checkbox" id="pm-mute" ${FP.Audio.muted ? 'checked' : ''}> Silenciar efeitos</label>
