@@ -150,5 +150,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const pwa = $('#menu-pwa'); if (pwa) pwa.onclick = M.install;
   // celular em pé: o mapa (minimapa e câmeras) começa recolhido
   if (M.phone) document.body.classList.remove('showmap');
+  // link "…workers.dev/#instalar" (site da A² LABS): abre direto o guia de instalação
+  if (location.hash === '#instalar' && M.canInstall()) setTimeout(M.installDialog, 300);
 });
 })();
