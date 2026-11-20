@@ -956,9 +956,15 @@ function makeBuilding(type){
   const m1 = new THREE.Mesh(g1, matStd); m1.castShadow = true; m1.receiveShadow = true; grp.add(m1);
   if (g2){ const m2 = new THREE.Mesh(g2, matWin); m2.castShadow = false; grp.add(m2); }
   if (type === 'entrada'){
-    const tex = textTex([{t: 'FAUNÓPOLIS', s: 74, b: true}], 640, 110, '#F2B33D', '#1E2A2F');
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(w - .7, .46), PBR({map: tex, roughness: .6}));
-    pl.position.set(0, 2.06, .06); grp.add(pl);
+    // v2.3: placas de ENTRADA e SAÍDA (sem o nome do jogo), dos dois lados do portal
+    const half = (w - .8) / 2 - .06;
+    [[-1, 'ENTRADA  ▸', '#2f9a55'], [1, '◂  SAÍDA', '#E8574B']].forEach(([s, t, cor]) => {
+      const tex = textTex([{t, s: 68, b: true}], 420, 110, cor, '#ffffff', 'rgba(255,255,255,.55)');
+      [[.06, 0], [-.46, Math.PI]].forEach(([z, ry]) => {
+        const pl = new THREE.Mesh(new THREE.PlaneGeometry(half, .44), PBR({map: tex, roughness: .6}));
+        pl.position.set(s * (half / 2 + .06), 2.06, z); pl.rotation.y = ry; grp.add(pl);
+      });
+    });
   }
   if (icon){ const s = iconSprite(b.icone, b.cor); s.position.set(0, hgt + .45, 0); grp.add(s); }
   return grp;
@@ -970,7 +976,13 @@ function rebuildBuildings(G){
     if (o.kind !== 'building') return;
     const m = buildingModel(o.type);
     m.position.set(o.x + o.w / 2, 0, o.y + o.h / 2);
-    if (o.type === 'banco' || o.type === 'lixeira'){
+    const onPath = FP.BUILDINGS[o.type].noCaminho && G.path[U.idx(o.x, o.y)];
+    if (onPath){
+      // v2.3: no próprio caminho, fica na borda (virado para o centro do caminho) e um pouco menor
+      const [ox, oy] = FP.World.borderOffset(G, o.x, o.y);
+      m.position.set(o.x + .5 + ox * 1.05, .03, o.y + .5 + oy * 1.05); m.scale.setScalar(.72);
+      if (ox || oy) m.rotation.y = Math.atan2(-ox, -oy);
+    } else if (o.type === 'banco' || o.type === 'lixeira'){
       const dirs = [[0, 1, 0], [0, -1, Math.PI], [1, 0, Math.PI / 2], [-1, 0, -Math.PI / 2]];
       for (const [dx, dy, r] of dirs){ const nx = o.x + dx, ny = o.y + dy; if (U.inMap(nx, ny) && G.path[U.idx(nx, ny)]){ m.rotation.y = r; break; } }
     }

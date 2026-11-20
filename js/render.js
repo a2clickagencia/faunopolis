@@ -419,7 +419,11 @@ function drawObject(G, o){
     } else g.drawImage(s.c, cx - s.half, cy - s.half, s.half * 2, s.half * 2);
   } else {
     const c = S.building(o.type);
-    g.drawImage(c, o.x * T, o.y * T, o.w * T, o.h * T);
+    // v2.3: banco/lixeira/ponto de informação sobre o caminho ficam menores, na borda
+    if (FP.BUILDINGS[o.type].noCaminho && G.path[U.idx(o.x, o.y)]){
+      const [ox, oy] = FP.World.borderOffset(G, o.x, o.y), k = .62;
+      g.drawImage(c, (o.x + .5 + ox * 1.05) * T - T * k / 2, (o.y + .5 + oy * 1.05) * T - T * k / 2, T * k, T * k);
+    } else g.drawImage(c, o.x * T, o.y * T, o.w * T, o.h * T);
   }
 }
 

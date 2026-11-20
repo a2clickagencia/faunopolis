@@ -6,7 +6,7 @@
    ========================================================= */
 'use strict';
 (function(){
-const I = FP.Input = {tool: 'select', toolArg: null, brush: 1, hoverTile: null, hoverChunk: null, drag: null, mouse: {x: 0, y: 0}};
+const I = FP.Input = {tool: 'select', toolArg: null, brush: 1, terrainMode: 'area', hoverTile: null, hoverChunk: null, drag: null, mouse: {x: 0, y: 0}};
 const U = FP.U, T = FP.TILE;
 const keys = {};
 let pan = null, cv;
@@ -30,7 +30,7 @@ I.init = function(canvas){
    Instalações e lotes: toque para posicionar (arrastar com 1 dedo move o mapa).
    2 dedos, sempre: mover + pinça (zoom); no 3D, girar os dedos gira a câmera e
    arrastar os 2 dedos para cima/baixo inclina. */
-const DRAW_TOOLS = ['path', 'enclosure', 'expand', 'demolish', 'release', 'reshape', 'pond', 'fill', 'terrain', 'deco'];
+const DRAW_TOOLS = ['path', 'enclosure', 'expand', 'demolish', 'release', 'reshape', 'pond', 'fill', 'terrain', 'deco', 'landfill'];
 I.panLock = false;   // botão "✋ Mover": 1 dedo só move o mapa, mesmo com uma ferramenta ativa
 I.isTouch = false;
 I.drawsWithFinger = () => !I.panLock && DRAW_TOOLS.includes(I.tool);
@@ -136,7 +136,7 @@ I.zoomStep = function(f){
 };
 
 I.setTool = function(tool, arg){
-  I.tool = tool; I.toolArg = arg || null; I.drag = null;
+  I.tool = tool; I.toolArg = (arg === undefined || arg === null || arg === '') ? null : arg; I.drag = null;
   document.body.dataset.tool = tool;
   FP.UI.onToolChange();
 };
@@ -199,6 +199,8 @@ function onKey(e){
   const k = e.key.toLowerCase();
   keys[k] = true;
   if (!FP.G || FP.UI.inMenu) return;
+  if ((e.ctrlKey || e.metaKey) && k === 'z'){ e.preventDefault(); keys[k] = false; FP.Undo.undo(); return; }
+  if (e.ctrlKey || e.metaKey) return;
   if (k === 'escape') I.cancel();
   else if (k === ' '){ e.preventDefault(); FP.UI.togglePause(); }
   else if (k === '1') FP.UI.setSpeed(1);
@@ -240,9 +242,11 @@ function toolDown(){
     case 'path':
       I.drag = {x0: t.x, y0: t.y, x1: t.x, y1: t.y}; break;
     case 'terrain': case 'deco':
-      I.drag = {x0: t.x, y0: t.y, x1: t.x, y1: t.y, painted: new Set(), spent: 0};
+      // v2.3: o terreno é escolhido por ÁREA (como um recinto); o pincel continua disponível
+      if (I.tool === 'terrain' && I.terrainMode === 'area'){ I.drag = {x0: t.x, y0: t.y, x1: t.x, y1: t.y}; break; }
+      I.drag = {x0: t.x, y0: t.y, x1: t.x, y1: t.y, painted: new Set(), spent: 0, snap: FP.Undo.snap(I.tool === 'deco' ? FP.DECOS[I.toolArg].nome : 'pintura de terreno')};
       paintAt(t.x, t.y); break;
-    case 'enclosure': case 'expand': case 'demolish': case 'release': case 'reshape': case 'pond': case 'fill':
+    case 'enclosure': case 'expand': case 'demolish': case 'release': case 'reshape': case 'pond': case 'fill': case 'landfill':
       I.drag = {x0: t.x, y0: t.y, x1: t.x, y1: t.y}; break;
     case 'building': placeBuilding(t); break;
     case 'land': {
@@ -250,7 +254,9 @@ function toolDown(){
       const price = FP.World.chunkPrice(G);
       if (!FP.World.chunkBuyable(G, cx, cy)){ FP.UI.toast('Escolha um lote destacado, vizinho ao seu terreno.', 'error'); FP.Audio.play('error'); break; }
       FP.UI.confirm('Comprar lote de terreno', `Comprar este lote de 8×8 tiles por <b>${U.money(price)}</b>?`, () => {
+        const snap = FP.Undo.snap('compra de lote');
         const r = FP.World.buyChunk(G, cx, cy);
+        if (r.ok) FP.Undo.commit(snap);
         if (r.ok){ FP.Audio.play('buy'); FP.UI.toast('Lote adquirido por ' + U.money(r.price) + '!', 'good'); FP.World.refreshNetwork(G); }
         else { FP.UI.toast(r.msg, 'error'); FP.Audio.play('error'); }
       });
@@ -260,7 +266,7 @@ function toolDown(){
 }
 function toolMove(){
   const t = I.hoverTile; if (!t || !I.drag) return;
-  if (I.tool === 'terrain' || I.tool === 'deco'){
+  if ((I.tool === 'terrain' && I.terrainMode !== 'area') || I.tool === 'deco'){
     // pinta ao longo da linha entre o último e o atual (sem buracos)
     const d = I.drag;
     const steps = Math.max(Math.abs(t.x - d.x1), Math.abs(t.y - d.y1));
@@ -279,6 +285,8 @@ function toolMove(){
 function toolUp(){
   const G = FP.G, d = I.drag; I.drag = null;
   if (!d) return;
+  const LBL = {path: 'caminho', enclosure: 'novo recinto', expand: 'ampliação do recinto', reshape: 'nova área do recinto', release: 'liberação de área', pond: 'lago', fill: 'aterro', demolish: 'demolição', terrain: 'terreno', landfill: 'aterro'};
+  const snap = d.snap || FP.Undo.snap(LBL[I.tool] || I.tool);
   if (I.tool === 'path'){
     const p = I.pathPlan(d);
     if (!p.build.length){ if (p.tiles.length > 1 || !G.path[p.tiles[0]]) { FP.UI.toast('Nenhum tile pode receber caminho neste traçado.', 'error'); FP.Audio.play('error'); } return; }
@@ -287,13 +295,26 @@ function toolUp(){
       if (G.money < FP.World.PATH_COST){ FP.UI.toast('Dinheiro insuficiente: o caminho foi construído só em parte.', 'error'); break; }
       FP.Economy.spend(FP.World.PATH_COST, 'construção'); G.path[i] = 1; G.litter[i] = 0; n++;
     }
-    if (n){ FP.Audio.play('build'); FP.UI.floatMoney(-n * FP.World.PATH_COST); }
+    if (n){ FP.Audio.play('build'); FP.UI.floatMoney(-n * FP.World.PATH_COST); FP.Undo.commit(snap); }
     FP.World.refreshNetwork(G);
     Object.values(G.enclosures).forEach(e => e.dirty = true);
     return;
   }
+  if (I.tool === 'terrain' && I.terrainMode === 'area' || I.tool === 'landfill'){
+    const tiles = FP.World.rectTiles(d.x0, d.y0, d.x1, d.y1);
+    const fill = I.tool === 'landfill';
+    const tid = fill ? (I.toolArg === null ? FP.T.grama : I.toolArg) : I.toolArg;
+    const r = I.paintArea(tiles, tid, fill, false);
+    if (!r.n){ FP.UI.toast(fill ? 'Não há água para aterrar nesta área (água com aguapés ou boias precisa ser limpa antes).' : 'Nenhum tile desta área pode receber este terreno.', 'error'); FP.Audio.play('error'); return; }
+    FP.Undo.commit(snap);
+    FP.Audio.play('path'); FP.UI.floatMoney(-r.spent);
+    if (r.poor) FP.UI.toast('Dinheiro insuficiente: a área foi preenchida só em parte.', 'error');
+    else if (fill) FP.UI.toast(`⛰️ ${r.n} tiles de água aterrados (${FP.TERRAINS[tid].nome}).`, 'good');
+    FP.World.refreshNetwork(G);
+    return;
+  }
   if (I.tool === 'deco' || I.tool === 'terrain'){
-    if (d.spent > 0) FP.UI.floatMoney(-d.spent);
+    if (d.spent > 0){ FP.UI.floatMoney(-d.spent); FP.Undo.commit(snap); }
     FP.World.refreshNetwork(G);
     Object.values(G.enclosures).forEach(e => e.dirty = true);
     return;
@@ -305,6 +326,7 @@ function toolUp(){
     const cost = FP.World.enclosureCost(G, tiles, null);
     if (G.money < cost){ FP.UI.toast('Dinheiro insuficiente (' + U.money(cost) + ').', 'error'); FP.Audio.play('error'); return; }
     FP.Economy.spend(cost, 'construção');
+    FP.Undo.commit(snap);
     const e = FP.World.createEnclosure(G, tiles);
     FP.World.refreshNetwork(G);
     FP.Audio.play('build'); FP.UI.floatMoney(-cost);
@@ -319,6 +341,7 @@ function toolUp(){
     const cost = FP.World.enclosureCost(G, tiles, e);
     if (G.money < cost){ FP.UI.toast('Dinheiro insuficiente (' + U.money(cost) + ').', 'error'); FP.Audio.play('error'); return; }
     const before = FP.World.encCapacity(G, e);
+    FP.Undo.commit(snap);
     FP.Economy.spend(cost, 'construção');
     FP.World.expandEnclosure(G, e, tiles.filter(i => G.enc[i] !== e.id));
     FP.World.refreshNetwork(G);
@@ -331,6 +354,7 @@ function toolUp(){
     const p = FP.World.reshapePreview(G, e, tiles);
     if (!p.ok){ FP.UI.toast(p.msg, 'error'); return; }
     if (G.money < p.cost - p.refund){ FP.UI.toast('Dinheiro insuficiente (' + U.money(p.cost - p.refund) + ').', 'error'); return; }
+    FP.Undo.commit(snap);
     FP.World.reshapeEnclosure(G, e, tiles);
     if (p.cost) FP.Economy.spend(p.cost, 'construção');
     if (p.refund) FP.Economy.earn(p.refund, 'reembolsos');
@@ -343,6 +367,7 @@ function toolUp(){
     const r = FP.World.releaseTiles(G, tiles);
     r.msgs.forEach(m => FP.UI.toast(m, /transferidos/.test(m) ? 'info' : 'error'));
     if (r.n){
+      FP.Undo.commit(snap);
       FP.Economy.earn(r.n * 5, 'reembolsos');
       FP.World.refreshNetwork(G);
       FP.Audio.play('demolish'); FP.UI.floatMoney(r.n * 5);
@@ -355,12 +380,13 @@ function toolUp(){
     const p = FP.World.pondPreview(G, e, tiles, fill);
     if (!p.ok){ FP.UI.toast(p.msg, 'error'); FP.Audio.play('error'); return; }
     if (G.money < p.cost){ FP.UI.toast('Dinheiro insuficiente (' + U.money(p.cost) + ').', 'error'); FP.Audio.play('error'); return; }
+    FP.Undo.commit(snap);
     FP.World.applyPond(G, e, tiles, fill);
     FP.Economy.spend(p.cost, 'paisagismo');
     FP.Audio.play('path'); FP.UI.floatMoney(-p.cost);
     FP.UI.toast(fill ? `${p.n} tiles de água aterrados em ${e.name}.` : `💧 Lago com ${p.n} tiles aberto em ${e.name}.`, 'good');
   } else if (I.tool === 'demolish'){
-    demolish(tiles);
+    if (demolish(tiles)) FP.Undo.commit(snap);
   }
 }
 /* v7.1: traçado do caminho em "L" (eixo mais longo primeiro), como no Urbis */
@@ -419,6 +445,7 @@ function placeBuilding(t){
   const v = FP.World.canPlaceObject(G, 'building', type, x, y);
   if (!v.ok){ FP.UI.toast(v.msg, 'error'); FP.Audio.play('error'); return; }
   if (G.money < def.custo){ FP.UI.toast('Dinheiro insuficiente (' + U.money(def.custo) + ').', 'error'); FP.Audio.play('error'); return; }
+  FP.Undo.commit(FP.Undo.snap(def.nome));
   const o = FP.World.placeObject(G, 'building', type, x, y);
   FP.World.refreshNetwork(G);
   FP.Audio.play('build'); FP.UI.floatMoney(-def.custo);
@@ -431,6 +458,17 @@ function demolish(tiles){
   const hadObj = new Set();
   tiles.forEach(i => { if (G.obj[i] >= 0){ objs.add(G.obj[i]); hadObj.add(i); } });
   objs.forEach(id => { const o = G.objects[id]; if (!o || o.type === 'entrada'){ if (o) msgs.add('A entrada principal não pode ser demolida.'); return; } refund += Math.round(FP.World.objDef(o).custo * .4); if (o.kind === 'deco' && G.enc[U.idx(o.x, o.y)] >= 0) G.enclosures[G.enc[U.idx(o.x, o.y)]].dirty = true; FP.World.removeObject(G, id); count++; });
+  // v2.3: se a área tinha itens (brinquedo, árvore, banco…), remove SÓ os itens: o recinto
+  // ou o caminho embaixo continuam. Para demolir o recinto/caminho, passe a ferramenta de novo.
+  if (count){
+    msgs.forEach(m => FP.UI.toast(m, 'error'));
+    FP.Economy.earn(refund, 'reembolsos');
+    FP.World.refreshNetwork(G);
+    FP.Audio.play('demolish');
+    FP.UI.floatMoney(refund);
+    FP.UI.toast(`🧨 ${count} ${count === 1 ? 'item removido' : 'itens removidos'}. O recinto e o caminho embaixo foram mantidos.`, 'info');
+    return count;
+  }
   // caminhos: se o tile tinha um poste/placa na borda, remove só o objeto (o caminho fica)
   tiles.forEach(i => { if (G.path[i] && !hadObj.has(i)){ if (i === G.gate || i === G.gate + 1){ msgs.add('O acesso da entrada não pode ser removido.'); return; } G.path[i] = 0; G.litter[i] = 0; refund += 6; count++; } });
   const byEnc = {};
@@ -448,7 +486,27 @@ function demolish(tiles){
     FP.Audio.play('demolish');
     FP.UI.floatMoney(refund);
   }
+  return count;
 }
+/* v2.3: pinta uma área inteira de terreno (ou aterra só a água dela) */
+I.paintArea = function(tiles, tid, onlyWater, preview){
+  const G = FP.G, c = FP.TERRAINS[tid].custo, T = FP.T;
+  let n = 0, spent = 0, poor = false, blocked = 0;
+  const touched = new Set();
+  for (const i of tiles){
+    if (onlyWater && G.ground[i] !== T.agua) continue;
+    if (tid === T.agua && G.enc[i] < 0 && !G.owned[i]) continue;
+    if (!FP.World.canPaint(G, i, tid)){ if (G.ground[i] !== tid) blocked++; continue; }
+    if (G.money - spent < c){ poor = true; if (!preview) break; }
+    spent += c; n++;
+    if (preview) continue;
+    FP.Economy.spend(c, 'paisagismo');
+    G.ground[i] = tid;
+    if (G.enc[i] >= 0) touched.add(G.enc[i]);
+  }
+  if (!preview) touched.forEach(id => { const e = G.enclosures[id]; if (!e) return; e.dirty = true; FP.World.encAnimals(G, e).forEach(a => FP.Animals.ensureInside(a)); });
+  return {n, spent, poor, blocked};
+};
 
 /* ---------- Prévia das ferramentas (desenhada no mundo) ---------- */
 I.drawPreview = function(g, T){
@@ -466,12 +524,24 @@ I.drawPreview = function(g, T){
     FP.Render.label((U.ix(last) + .5) * T, U.iy(last) * T - 12, `🛤️ ${p.build.length} tiles · ${U.money(p.cost)}${p.blocked.length ? ' · ' + p.blocked.length + ' bloqueados' : ''}${afford ? '' : ' · saldo insuficiente'}`, '#FFF4DE', afford ? 'rgba(30,42,47,.9)' : 'rgba(150,40,30,.92)', 12);
     return;
   }
+  if (I.drag && (I.tool === 'landfill' || (I.tool === 'terrain' && I.terrainMode === 'area'))){
+    const d = I.drag, fill = I.tool === 'landfill';
+    const xa = Math.min(d.x0, d.x1), xb = Math.max(d.x0, d.x1), ya = Math.min(d.y0, d.y1), yb = Math.max(d.y0, d.y1);
+    const tid = fill ? (I.toolArg === null ? FP.T.grama : I.toolArg) : I.toolArg;
+    const r = I.paintArea(FP.World.rectTiles(d.x0, d.y0, d.x1, d.y1), tid, fill, true);
+    const ok = r.n > 0;
+    g.fillStyle = FP.TERRAINS[tid].cor; g.globalAlpha = ok ? .55 : .25; g.fillRect(xa * T, ya * T, (xb - xa + 1) * T, (yb - ya + 1) * T); g.globalAlpha = 1;
+    g.strokeStyle = ok ? '#FFF4DE' : '#E8574B'; g.lineWidth = 2; g.strokeRect(xa * T, ya * T, (xb - xa + 1) * T, (yb - ya + 1) * T);
+    const txt = ok ? `${fill ? '⛰️ Aterrar' : '🏞️ ' + FP.TERRAINS[tid].nome} · ${xb - xa + 1}×${yb - ya + 1} · ${r.n} tiles · ${U.money(r.spent)}${r.poor ? ' · saldo insuficiente' : ''}` : (fill ? '⛔ Não há água para aterrar aqui' : '⛔ Nada a mudar nesta área');
+    FP.Render.label((xa + xb + 1) / 2 * T, ya * T - 12, txt, '#FFF4DE', ok && !r.poor ? 'rgba(30,42,47,.9)' : 'rgba(150,40,30,.92)', 12);
+    return;
+  }
   if (I.drag && ['enclosure', 'expand', 'demolish', 'release', 'reshape', 'pond', 'fill'].includes(I.tool)){
     const d = I.drag;
     const xa = Math.min(d.x0, d.x1), xb = Math.max(d.x0, d.x1), ya = Math.min(d.y0, d.y1), yb = Math.max(d.y0, d.y1);
     const tiles = FP.World.rectTiles(d.x0, d.y0, d.x1, d.y1);
     let ok = true, txt = '';
-    if (I.tool === 'demolish'){ g.fillStyle = 'rgba(232,87,75,.3)'; txt = '🧨 Demolir ' + tiles.length + ' tiles'; }
+    if (I.tool === 'demolish'){ g.fillStyle = 'rgba(232,87,75,.3)'; const no = new Set(tiles.filter(i => G.obj[i] >= 0 && G.objects[G.obj[i]] && G.objects[G.obj[i]].type !== 'entrada').map(i => G.obj[i])).size; txt = no ? `🧨 Remover ${no} ${no === 1 ? 'item' : 'itens'} (recinto/caminho ficam)` : '🧨 Demolir ' + tiles.length + ' tiles'; }
     else if (I.tool === 'pond' || I.tool === 'fill'){
       const e = G.enclosures[I.toolArg];
       const p = e ? FP.World.pondPreview(G, e, tiles, I.tool === 'fill') : {ok:false, msg:'Recinto inexistente.'}; ok = p.ok;
@@ -521,6 +591,10 @@ I.drawPreview = function(g, T){
     const ok = FP.World.canPath(G, U.idx(t.x, t.y)) || G.path[U.idx(t.x, t.y)];
     g.fillStyle = ok ? 'rgba(216,203,169,.7)' : 'rgba(232,87,75,.35)'; g.fillRect(t.x * T, t.y * T, T, T);
     FP.Render.label((t.x + .5) * T, t.y * T - 10, `Caminho · ${U.money(FP.World.PATH_COST)}/tile · clique e arraste uma reta, solte para construir`, '#FFF4DE', 'rgba(30,42,47,.9)', 11);
+  } else if (I.tool === 'landfill' || (I.tool === 'terrain' && I.terrainMode === 'area')){
+    const tid = I.tool === 'landfill' ? (I.toolArg === null ? FP.T.grama : I.toolArg) : I.toolArg;
+    g.strokeStyle = '#FFF4DE'; g.lineWidth = 1.5; g.strokeRect(t.x * T, t.y * T, T, T);
+    FP.Render.label((t.x + .5) * T, t.y * T - 10, I.tool === 'landfill' ? `⛰️ Arraste sobre a água para aterrar (vira ${FP.TERRAINS[tid].nome.toLowerCase()})` : `${FP.TERRAINS[tid].nome} · ${U.money(FP.TERRAINS[tid].custo)}/tile · arraste uma área`, '#FFF4DE', 'rgba(30,42,47,.9)', 11);
   } else if (I.tool === 'terrain'){
     const r = I.brush - 1, tid = I.toolArg;
     g.fillStyle = FP.TERRAINS[tid].cor; g.globalAlpha = .55;

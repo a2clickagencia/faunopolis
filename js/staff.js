@@ -81,7 +81,8 @@ S.feedRound = function(){
 S.feedAnimal = function(a, shortage){
   const G = FP.G;
   const sp = FP.SPECIES[a.sp];
-  const qty = sp.qtd / 3 * (FP.Animals.isBaby(a) ? .5 : 1);
+  const enc = G.enclosures[a.enc], feeder = enc && FP.World.encStats(G, enc).feeder;
+  const qty = sp.qtd / 3 * (FP.Animals.isBaby(a) ? .5 : 1) * (feeder ? .85 : 1);
   if (G.food[sp.comida] >= qty){ G.food[sp.comida] -= qty; a.sat = Math.min(100, a.sat + 40); return true; }
   if (G.food[sp.comida] > 0){ const part = G.food[sp.comida] / qty; G.food[sp.comida] = 0; a.sat = Math.min(100, a.sat + 40 * part); }
   if (shortage) shortage[sp.comida] = (shortage[sp.comida] || 0) + 1;
@@ -243,11 +244,28 @@ H.sendQuarantine = function(a){
   a.homeEnc = a.enc; a.quar = true; a.quarDay = G.day;
   return {ok:true};
 };
-H.release = function(a){
+/* v2.3: ao sair da quarentena o animal volta ao recinto de origem; se ele não existir mais
+   (ou não couber), vai para onde está o grupo da mesma espécie, ou para outro recinto compatível. */
+H.releaseTargets = function(a){
+  const G = FP.G, W = FP.World, sp = FP.SPECIES[a.sp];
+  const fits = e => W.compatible(G, e, a.sp).ok && W.encOccupancy(G, e).used + sp.esp * (FP.Animals.isBaby(a) ? .5 : 1) <= e.tiles.length;
+  const encs = Object.values(G.enclosures);
+  const home = G.enclosures[a.homeEnc];
+  const out = [];
+  if (home && fits(home)) out.push(home);
+  encs.filter(e => e !== home && fits(e) && W.encAnimals(G, e).some(x => x.sp === a.sp)).forEach(e => out.push(e));
+  encs.filter(e => e !== home && fits(e) && !out.includes(e)).sort((x, y) => W.habitat(G, y, a.sp) - W.habitat(G, x, a.sp)).forEach(e => out.push(e));
+  return out;
+};
+H.release = function(a, enc){
   const G = FP.G;
-  const enc = G.enclosures[a.homeEnc];
-  if (!enc) return {ok:false, msg:'O recinto de origem não existe mais. Use "Mover" para escolher outro recinto.'};
-  a.quar = false; a.enc = enc.id; FP.Animals.placeRandom(a, enc);
-  return {ok:true};
+  const home = G.enclosures[a.homeEnc];
+  if (!enc){
+    const t = H.releaseTargets(a);
+    if (!t.length) return {ok:false, choose:true, msg:'Nenhum recinto compatível tem espaço para ' + a.name + '. Amplie um recinto ou crie um novo e tente de novo.'};
+    enc = t[0];
+  }
+  a.quar = false; a.enc = enc.id; a.homeEnc = enc.id; FP.Animals.placeRandom(a, enc);
+  return {ok:true, enc, moved: enc !== home, msg: enc !== home ? `${a.name} foi para ${enc.name}${home ? '' : ' (o recinto de origem não existe mais)'}.` : ''};
 };
 })();

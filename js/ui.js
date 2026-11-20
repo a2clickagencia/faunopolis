@@ -127,7 +127,8 @@ UI.helpDialog = function(){
    <div><h4>Câmera</h4><p>WASD / setas: mover · Roda do mouse: zoom · Botão direito + arrastar: mover · Clique direito: cancelar ferramenta.</p></div>
    <div><h4>Câmera 3D (v2.0)</h4><p>V: alterna os modos (2D, Isométrica, Órbita livre, Seguir animal, Olhar do visitante, Tour) · Q/E: girar 90° · Botão do meio (ou Alt + botão direito): orbitar · Shift + roda ou PgUp/PgDn: inclinar.</p></div>
    <div><h4>Tempo</h4><p>Espaço: pausar · 1, 2, 3, 4: velocidades 1×, 2×, 4×, 8× · F5: salvar rápido.</p></div>
-   <div><h4>Atalhos</h4><p>C: caminho · R: recinto · X: liberar área de recinto · B: demolir · L: alternar lentes · Esc: cancelar/fechar.</p></div>
+   <div><h4>Atalhos</h4><p>C: caminho · R: recinto · X: liberar área de recinto · B: demolir · L: alternar lentes · Esc: cancelar/fechar · <b>Ctrl+Z: desfazer</b> (ou o botão ↶ na barra).</p></div>
+   <div><h4>Novidades da versão 2.3</h4><p>🏞️ Terreno por área (arraste como um recinto) e ⛰️ Aterrar água · 🧨 Demolir remove só o item e mantém o recinto · 🪑 Banco, lixeira, poste e ponto de informação no próprio caminho · 🐾 Cada item mostra para quais animais é indicado · 🍽️ Comedouro e 🚰 bebedouro · 8 novos brinquedos · Ctrl+Z.</p></div>
    <div><h4>Caminhos em linha (v7.1)</h4><p>Ferramenta Caminho (C): clique no início, arraste até o fim e solte. A reta (ou o "L") inteira é construída de uma vez, com prévia de custo e tiles bloqueados.</p></div>
    <div><h4>Brinquedos e lagos (v7.1)</h4><p>🧸 Brinquedos: bola, caixa de petiscos, pneu, arranhador, escova, quebra-cabeça, rede de cordas, poleiro e boia. Cada espécie adora alguns deles (veja "Adora" no habitat do recinto): os animais vão até eles e brincam, ganhando bem-estar. No painel do recinto: 💧 Abrir lago e ⛰️ Aterrar.</p></div>
    <div><h4>Recintos errados? (v2.0)</h4><p>Desenhe um novo recinto ou amplie por cima de outro: os tiles são redesignados. No painel do recinto use 📐 Redefinir área para refazer a área inteira, ou 🔓 Liberar parte.</p></div>
@@ -283,7 +284,8 @@ const BUILD_CATS = [
   {id:'visit', icone:'🍔', nome:'Instalações para visitantes', fly:'visit'},
   {id:'oper', icone:'🏥', nome:'Instalações operacionais', fly:'oper'},
   {id:'land', icone:'🗺️', nome:'Comprar terreno', tool:'land'},
-  {id:'demolish', icone:'🧨', nome:'Demolir (B)', tool:'demolish'}
+  {id:'demolish', icone:'🧨', nome:'Demolir (B) — se a área tiver itens (brinquedo, árvore, banco…), remove só os itens', tool:'demolish'},
+  {id:'undo', icone:'↶', nome:'Desfazer a última ação (Ctrl+Z)', act:'undo'}
 ];
 UI.buildToolbar = function(){
   const bar = $('#buildbar');
@@ -291,9 +293,11 @@ UI.buildToolbar = function(){
   bar.querySelectorAll('button').forEach(b => b.onclick = () => {
     FP.Audio.play('click');
     const c = BUILD_CATS.find(x => x.id === b.dataset.cat);
+    if (c.act === 'undo'){ FP.Undo.undo(); return; }
     if (c.tool){ $('#flyout').classList.add('hidden'); FP.Input.setTool(c.tool); }
     else UI.openFlyout(c);
   });
+  UI.renderUndo();
   const mg = $('#mgmtbar');
   const M = [['animals','🦓','Animais'],['market','🛒','Mercado'],['staff','👷','Equipe'],['food','🥕','Alimentação'],['health','🩺','Saúde'],['visitors','🎟️','Visitantes'],['finance','💰','Finanças'],['progress','🏆','Progresso'],['notifs','🔔','Notificações'],['guide','📘','Guia']];
   mg.innerHTML = M.map(([id, ic, n]) => `<button data-panel="${id}" title="${n}"><span>${ic}</span><small>${n}</small>${id === 'notifs' ? '<i id="notif-badge"></i>' : ''}</button>`).join('');
@@ -304,6 +308,7 @@ UI.buildToolbar = function(){
   UI.renderLenses();
   UI.onToolChange();
 };
+UI.renderUndo = () => { const b = document.querySelector('#buildbar [data-cat="undo"]'); if (b) b.disabled = !FP.Undo.can(); };
 UI.renderLenses = () => document.querySelectorAll('#lenses button').forEach(b => b.classList.toggle('on', b.dataset.lens === FP.Render.lens));
 UI.cycleLens = () => { const L = ['normal','bemestar','limpeza','saude','habitat','lotacao']; FP.Render.lens = L[(L.indexOf(FP.Render.lens) + 1) % L.length]; UI.renderLenses(); UI.toast('Lente: ' + document.querySelector(`#lenses [data-lens="${FP.Render.lens}"]`).title); };
 UI.onToolChange = function(){
@@ -315,17 +320,21 @@ UI.onToolChange = function(){
     if ((c.fly === 'veg' || c.fly === 'deco' || c.fly === 'toys') && I.tool === 'deco'){ const d = FP.DECOS[I.toolArg] || {}; on = c.fly === (d.planta ? 'veg' : d.brinquedo ? 'toys' : 'deco'); }
     if ((c.fly === 'visit' || c.fly === 'oper') && I.tool === 'building') on = (FP.BUILDINGS[I.toolArg].tipo === 'visitante') === (c.fly === 'visit');
     if (c.id === 'enclosure' && (I.tool === 'expand' || I.tool === 'reshape' || I.tool === 'pond' || I.tool === 'fill')) on = true;
+    if (c.fly === 'terrain' && I.tool === 'landfill') on = true;
     b.classList.toggle('on', on);
   });
   const hint = $('#toolhint');
-  const H = {path:'🛤️ Clique no início, arraste até o fim e SOLTE para construir a reta (ou o "L") inteira de uma vez. Visitantes só andam em caminhos ligados à entrada.', pond:'💧 Arraste sobre o recinto para abrir um lago (áreas sem plantas/objetos).', fill:'⛰️ Arraste sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste um retângulo para criar um recinto (mín. 3×3). Pode ser desenhado por cima de outro recinto: os tiles são redesignados.', expand:'↔️ Arraste uma área encostada no recinto para ampliá-lo (pode tomar tiles de outro recinto).', reshape:'📐 Arraste a nova área completa do recinto. A área antiga é liberada (reembolso) e os animais são realocados.', release:'🔓 Arraste sobre áreas de recinto para liberá-las. Vegetação e decoração ficam; se um recinto inteiro for liberado, os animais vão para outro recinto compatível.', terrain:'🏞️ Pinte o terreno. Pincel: ', deco:'🌳 Clique (ou arraste) para posicionar.', building:'🏗️ Clique para posicionar. A instalação precisa encostar em um caminho.', land:'🗺️ Clique em um lote destacado para comprá-lo.', demolish:'🧨 Arraste sobre objetos, caminhos ou partes de recintos para demolir (reembolso parcial).'};
-  const HT = {path:'🛤️ Arraste o dedo do início ao fim e SOLTE: a reta (ou o "L") é construída de uma vez.', pond:'💧 Arraste o dedo sobre o recinto para abrir um lago.', fill:'⛰️ Arraste o dedo sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste o dedo para desenhar o retângulo do recinto (mín. 3×3).', expand:'↔️ Arraste o dedo numa área encostada no recinto para ampliá-lo.', reshape:'📐 Arraste o dedo marcando a nova área completa do recinto.', release:'🔓 Arraste o dedo sobre a área de recinto que quer liberar.', terrain:'🏞️ Pinte com o dedo. Pincel: ', deco:'🌳 Toque (ou arraste o dedo) para posicionar.', building:'🏗️ Toque no mapa para posicionar (encostado num caminho).', land:'🗺️ Toque num lote destacado para comprá-lo.', demolish:'🧨 Arraste o dedo sobre o que quer demolir.'};
+  const H = {path:'🛤️ Clique no início, arraste até o fim e SOLTE para construir a reta (ou o "L") inteira de uma vez. Visitantes só andam em caminhos ligados à entrada.', pond:'💧 Arraste sobre o recinto para abrir um lago (áreas sem plantas/objetos).', fill:'⛰️ Arraste sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste um retângulo para criar um recinto (mín. 3×3). Pode ser desenhado por cima de outro recinto: os tiles são redesignados.', expand:'↔️ Arraste uma área encostada no recinto para ampliá-lo (pode tomar tiles de outro recinto).', reshape:'📐 Arraste a nova área completa do recinto. A área antiga é liberada (reembolso) e os animais são realocados.', release:'🔓 Arraste sobre áreas de recinto para liberá-las. Vegetação e decoração ficam; se um recinto inteiro for liberado, os animais vão para outro recinto compatível.', terrain:'🏞️ Arraste uma ÁREA para trocar o terreno (como um recinto), ou use o pincel.', landfill:'⛰️ Arraste uma área sobre a água: só a água vira terra firme.', deco:'🌳 Clique (ou arraste) para posicionar.', building:'🏗️ Clique para posicionar. A instalação precisa encostar em um caminho.', land:'🗺️ Clique em um lote destacado para comprá-lo.', demolish:'🧨 Se a área tiver itens (brinquedo, árvore, banco…), só os itens saem: o recinto e o caminho ficam. Sem itens, demole caminhos ou partes de recintos. Errou? Ctrl+Z.'};
+  const HT = {path:'🛤️ Arraste o dedo do início ao fim e SOLTE: a reta (ou o "L") é construída de uma vez.', pond:'💧 Arraste o dedo sobre o recinto para abrir um lago.', fill:'⛰️ Arraste o dedo sobre a água do recinto para aterrar.', enclosure:'🧱 Arraste o dedo para desenhar o retângulo do recinto (mín. 3×3).', expand:'↔️ Arraste o dedo numa área encostada no recinto para ampliá-lo.', reshape:'📐 Arraste o dedo marcando a nova área completa do recinto.', release:'🔓 Arraste o dedo sobre a área de recinto que quer liberar.', terrain:'🏞️ Arraste o dedo marcando a área do novo terreno.', landfill:'⛰️ Arraste o dedo sobre a água para aterrar.', deco:'🌳 Toque (ou arraste o dedo) para posicionar.', building:'🏗️ Toque no mapa para posicionar (encostado num caminho).', land:'🗺️ Toque num lote destacado para comprá-lo.', demolish:'🧨 Arraste o dedo sobre o que quer demolir.'};
   const touch = document.body.classList.contains('touch');
   if (FP.Mobile) FP.Mobile.renderFabs();
   if (I.tool === 'select'){ hint.classList.add('hidden'); return; }
   hint.classList.remove('hidden');
-  hint.innerHTML = (touch ? (I.panLock ? '✋ Mover ligado: 1 dedo move o mapa. Toque em ✋ para voltar a construir.' : (HT[I.tool] || '') + (['building', 'land'].includes(I.tool) ? '' : ' <small>2 dedos movem o mapa.</small>')) : (H[I.tool] || '')) + (I.tool === 'terrain' ? [1,2,3].map(n => `<button class="btn xs ${I.brush === n ? 'on' : ''}" data-brush="${n}">${n * 2 - 1}×${n * 2 - 1}</button>`).join('') : '') + ' <button class="btn xs ghost" id="tool-cancel">' + (touch ? '✖ Sair' : 'Cancelar (Esc)') + '</button>';
+  const rec = I.tool === 'deco' && FP.DECOS[I.toolArg] ? FP.World.recommendText('deco', I.toolArg, 5) : I.tool === 'terrain' && I.toolArg !== null ? FP.World.recommendText('terrain', I.toolArg, 5) : '';
+  const modeBtns = I.tool === 'terrain' ? ` <button class="btn xs ${I.terrainMode === 'area' ? 'on' : ''}" data-tmode="area">▭ Área</button><button class="btn xs ${I.terrainMode !== 'area' ? 'on' : ''}" data-tmode="brush">🖌️ Pincel</button>` + (I.terrainMode !== 'area' ? [1,2,3].map(n => `<button class="btn xs ${I.brush === n ? 'on' : ''}" data-brush="${n}">${n * 2 - 1}×${n * 2 - 1}</button>`).join('') : '') : '';
+  hint.innerHTML = (touch ? (I.panLock ? '✋ Mover ligado: 1 dedo move o mapa. Toque em ✋ para voltar a construir.' : (HT[I.tool] || '') + (['building', 'land'].includes(I.tool) ? '' : ' <small>2 dedos movem o mapa.</small>')) : (H[I.tool] || '')) + modeBtns + ' <button class="btn xs ghost" id="tool-cancel">' + (touch ? '✖ Sair' : 'Cancelar (Esc)') + '</button>' + (rec ? `<div class="hint-rec">🐾 ${esc(rec)}</div>` : '');
   hint.querySelectorAll('[data-brush]').forEach(b => b.onclick = () => { I.brush = +b.dataset.brush; UI.onToolChange(); });
+  hint.querySelectorAll('[data-tmode]').forEach(b => b.onclick = () => { I.terrainMode = b.dataset.tmode; I.drag = null; UI.onToolChange(); });
   $('#tool-cancel').onclick = () => FP.Input.setTool('select');
 };
 const TOY_TAG = {todos:'todos', quad:'mamíferos', elefante:'elefantes', primata:'primatas', foca:'focas', predador:'felinos e predadores', herbivoro:'herbívoros', grande:'animais grandes', escalador:'escaladores', ave:'aves', nadador:'nadadores'};
@@ -337,17 +346,27 @@ UI.openFlyout = function(c){
   f.dataset.cat = c.id;
   const G = FP.G, E = FP.Economy;
   let items = [];
-  if (c.fly === 'terrain') items = FP.TERRAINS.map(t => ({kind:'terrain', id:t.id, nome:t.nome, custo:t.custo + '/tile', img:FP.Sprites.iconURL('terrain', t.id, 44), lock: !E.unlocked(t), stage: t.stage}));
-  else if (c.fly === 'toys') items = Object.keys(FP.DECOS).filter(k => FP.DECOS[k].brinquedo).map(k => { const d = FP.DECOS[k]; return {kind:'deco', id:k, nome:d.nome, custo:d.custo, img:FP.Sprites.iconURL('deco', k, 44), lock: !E.unlocked(d), stage: d.stage, sub: UI.toyWho(k), desc: 'Favorito de: ' + UI.toyWho(k, true)}; });
-  else if (c.fly === 'veg' || c.fly === 'deco') items = Object.keys(FP.DECOS).filter(k => !FP.DECOS[k].brinquedo && !!FP.DECOS[k].planta === (c.fly === 'veg')).map(k => { const d = FP.DECOS[k]; return {kind:'deco', id:k, nome:d.nome, custo:d.custo, img:FP.Sprites.iconURL('deco', k, 44), lock: !E.unlocked(d), stage: d.stage, sub: d.biomas.length ? d.biomas.map(b => FP.BIOMES[b].icone).join('') : (d.abrigo ? 'abrigo' : d.agua ? 'água' : d.enriq ? 'enriquecimento' : d.foraRecinto ? 'visitantes' : '')}; });
-  else items = Object.keys(FP.BUILDINGS).filter(k => FP.BUILDINGS[k].tipo === (c.fly === 'visit' ? 'visitante' : 'operacional')).map(k => { const b = FP.BUILDINGS[k]; return {kind:'building', id:k, nome:b.nome, custo:b.custo, img:FP.Sprites.iconURL('building', k, 44), lock: !E.unlocked(b), stage: b.stage, sub: b.w + '×' + b.h, desc: b.desc}; });
-  f.innerHTML = `<h4>${c.nome}</h4><div class="fly-grid">` + items.map(it => `<button class="fly-item ${it.lock ? 'lock' : ''}" data-kind="${it.kind}" data-id="${it.id}" title="${esc(it.nome)}${it.desc ? ' — ' + esc(it.desc) : ''}${it.lock ? ' (Etapa ' + it.stage + ')' : ''}"><img src="${it.img}" alt=""><span>${esc(it.nome)}</span><small>${it.lock ? '🔒 Etapa ' + it.stage : (typeof it.custo === 'number' ? U.money(it.custo) : 'R$ ' + it.custo)}${it.sub ? ' · ' + it.sub : ''}</small></button>`).join('') + '</div>';
+  if (c.fly === 'terrain'){
+    items = FP.TERRAINS.map(t => ({kind:'terrain', id:t.id, nome:t.nome, custo:t.custo + '/tile', img:FP.Sprites.iconURL('terrain', t.id, 44), lock: !E.unlocked(t), stage: t.stage, rec: FP.World.recommendText('terrain', t.id, 6)}));
+    items.push({kind:'landfill', id:FP.T.grama, nome:'Aterrar água', custo:'4+/tile', img:FP.Sprites.iconURL('terrain', FP.T.grama, 44), sub:'água → terra', rec:'Transforma lago em terra firme numa área inteira (vira grama, ou o terreno escolhido com o pincel por último).'});
+  }
+  else if (c.fly === 'toys') items = Object.keys(FP.DECOS).filter(k => FP.DECOS[k].brinquedo).map(k => { const d = FP.DECOS[k]; return {kind:'deco', id:k, nome:d.nome, custo:d.custo, img:FP.Sprites.iconURL('deco', k, 44), lock: !E.unlocked(d), stage: d.stage, sub: UI.toyWho(k), desc: 'Favorito de: ' + UI.toyWho(k, true), rec: FP.World.recommendText('deco', k, 8)}; });
+  else if (c.fly === 'veg' || c.fly === 'deco') items = Object.keys(FP.DECOS).filter(k => !FP.DECOS[k].brinquedo && !!FP.DECOS[k].planta === (c.fly === 'veg')).map(k => { const d = FP.DECOS[k]; return {kind:'deco', id:k, nome:d.nome, custo:d.custo, img:FP.Sprites.iconURL('deco', k, 44), lock: !E.unlocked(d), stage: d.stage, sub: d.biomas.length ? d.biomas.map(b => FP.BIOMES[b].icone).join('') : (d.abrigo ? 'abrigo' : d.agua ? 'água' : d.comedouro ? 'comida' : d.enriq ? 'enriquecimento' : d.foraRecinto || d.naBorda ? 'visitantes' : ''), desc: d.desc, rec: FP.World.recommendText('deco', k, 8) || (d.naBorda ? 'Para visitantes: pode ficar na borda do próprio caminho.' : d.foraRecinto ? 'Para as áreas dos visitantes.' : '')}; });
+  else items = Object.keys(FP.BUILDINGS).filter(k => FP.BUILDINGS[k].tipo === (c.fly === 'visit' ? 'visitante' : 'operacional')).map(k => { const b = FP.BUILDINGS[k]; return {kind:'building', id:k, nome:b.nome, custo:b.custo, img:FP.Sprites.iconURL('building', k, 44), lock: !E.unlocked(b), stage: b.stage, sub: b.w + '×' + b.h + (b.noCaminho ? ' · no caminho' : ''), desc: b.desc}; });
+  f.innerHTML = `<h4>${c.nome}</h4><div class="fly-grid">` + items.map((it, n) => `<button class="fly-item ${it.lock ? 'lock' : ''}" data-n="${n}" data-kind="${it.kind}" data-id="${it.id}" title="${esc(it.nome)}${it.desc ? ' — ' + esc(it.desc) : ''}${it.rec ? ' — ' + esc(it.rec) : ''}${it.lock ? ' (Etapa ' + it.stage + ')' : ''}"><img src="${it.img}" alt=""><span>${esc(it.nome)}</span><small>${it.lock ? '🔒 Etapa ' + it.stage : (typeof it.custo === 'number' ? U.money(it.custo) : 'R$ ' + it.custo)}${it.sub ? ' · ' + it.sub : ''}</small></button>`).join('') + '</div><div class="fly-info" id="fly-info"></div>';
   f.classList.remove('hidden');
+  // v2.3: ficha do item com as espécies indicadas (ao passar o mouse, focar ou tocar)
+  const info = $('#fly-info');
+  const showInfo = it => { info.innerHTML = it ? `<b>${esc(it.nome)}</b>${it.desc ? ' — ' + esc(it.desc) : ''}${it.rec ? `<br><span class="rec">🐾 ${esc(it.rec)}</span>` : ''}` : (c.fly === 'visit' || c.fly === 'oper' ? 'Passe o mouse ou toque num item para ver os detalhes.' : 'Passe o mouse ou toque num item para ver para quais animais ele é mais indicado.'); };
+  showInfo(null);
+  f.querySelectorAll('.fly-item').forEach(b => { b.addEventListener('mouseenter', () => showInfo(items[+b.dataset.n])); b.addEventListener('focus', () => showInfo(items[+b.dataset.n])); });
   f.querySelectorAll('.fly-item').forEach(b => b.onclick = () => {
     if (b.classList.contains('lock')){ UI.toast('Bloqueado: avance de etapa para liberar.', 'error'); return; }
     FP.Audio.play('click');
     const k = b.dataset.kind, id = b.dataset.id;
-    if (k === 'terrain') FP.Input.setTool('terrain', +id);
+    showInfo(items[+b.dataset.n]);
+    if (k === 'landfill') FP.Input.setTool('landfill', FP.Input.lastLand !== undefined ? FP.Input.lastLand : +id);
+    else if (k === 'terrain'){ FP.Input.setTool('terrain', +id); if (+id !== FP.T.agua) FP.Input.lastLand = +id; }
     else if (k === 'deco') FP.Input.setTool('deco', id);
     else FP.Input.setTool('building', id);
     f.querySelectorAll('.fly-item').forEach(x => x.classList.toggle('on', x === b));
@@ -544,13 +563,14 @@ UI.openEnclosure = function(id){
         const d = FP.World.habitat(G, e, sp, true), S = FP.SPECIES[sp];
         h += `<div class="habbox"><b>${S.nome}: ${d.v}%</b>
           ${miniBar('Terreno', d.terr, 'Prefere: ' + Object.keys(S.terr).map(k => FP.TERRAINS[FP.T[k]].nome).join(', '))}
-          ${miniBar('Água', d.water, S.agua > 0 ? `Deseja ~${Math.round(S.agua * 100)}% de água (tem ${Math.round(st.waterFrac * 100)}%)` : 'Precisa de bebedouro ou lago')}
+          ${miniBar('Água', d.water, FP.World.needsLake(S) ? `Precisa de LAGO/piscina: ~${Math.round(S.agua * 100)}% do recinto (tem ${Math.round(st.waterFrac * 100)}%). Bebedouro ajuda pouco.` : `Basta um bebedouro (ou um pouco de lago)${st.waterSource ? ' ✅' : ''}`)}
           ${miniBar('Vegetação', d.fol, S.fol > 0 ? 'Plantas: ' + S.plantas.map(p => FP.DECOS[p].nome).join(', ') : 'Não precisa')}
           ${S.abrigo ? miniBar('Abrigo', d.shelter, 'Precisa de Abrigo para animais') : ''}
           ${S.enriq ? miniBar('Enriquecimento', d.enrich, 'Precisa de: ' + FP.DECOS[S.enriq].nome) : ''}
           ${miniBar('Brinquedos', d.fun, 'Adora: ' + (Object.keys(FP.DECOS).filter(k => FP.toyLiked(k, sp)).map(k => FP.DECOS[k].nome).join(', ') || '—'))}</div>`;
       });
     }
+    if (spList.length) h += `<div class="note">${st.drinker ? '🚰 Bebedouro: sim' : '🚰 Sem bebedouro'} · ${st.feeder ? '🍽️ Comedouro: sim (a comida dura mais e rende mais)' : '🍽️ Sem comedouro (coloque um: menos fome e menos ração)'}${spList.some(k => FP.World.needsLake(FP.SPECIES[k])) ? ' · 💧 Este recinto tem espécie que precisa de lago (piscinão)' : ''}</div>`;
     // animais
     if (s.as.length){
       h += '<h4>Animais</h4><div class="alist">' + s.as.sort((a, b) => a.sp.localeCompare(b.sp) || b.age - a.age).map(animalRow).join('') + '</div>';
@@ -579,6 +599,7 @@ UI.openAnimal = function(id){
     h += `<div class="stats">${stat('Saúde', a.health)}${stat('Bem-estar', a.happy)}${stat('Alimentação', a.sat)}</div>`;
     h += '<table class="kv">';
     h += `<tr><td>Local</td><td>${a.quar ? '🏥 Quarentena' : enc ? esc(enc.name) : '—'}</td></tr>`;
+    if (a.quar) h += `<tr><td>Volta para</td><td>${G.enclosures[a.homeEnc] ? esc(G.enclosures[a.homeEnc].name) : '<span class="warn">recinto de origem não existe mais</span>'}</td></tr>`;
     h += `<tr><td>Origem</td><td>${a.origin === 'nascimento' ? 'Nascido no zoológico (dia ' + a.born + ')' : 'Aquisição (dia ' + a.born + ')'}</td></tr>`;
     h += `<tr><td>Condição reprodutiva</td><td>${FP.Animals.isBaby(a) ? 'Imaturo' : a.preg ? (FP.Staff.count('biologo') ? 'Gestante · ' + a.preg.d + ' dias' : 'Gestante') : FP.Animals.isElder(a) ? 'Idoso' : 'Apto'}</td></tr>`;
     h += `<tr><td>Saúde</td><td>${a.sick ? (a.sick.known ? `<b style="color:#E8574B">${FP.DISEASES[a.sick.d].nome}</b>${a.sick.treating ? ' · em tratamento ' + Math.round(a.sick.prog * 100) + '%' : ' · sem tratamento'}` : 'Comportamento estranho?') : 'Saudável'}</td></tr>`;
@@ -586,7 +607,7 @@ UI.openAnimal = function(id){
     h += `<tr><td>Valor de venda</td><td>${U.money(FP.Animals.sellValue(a))}</td></tr></table>`;
     h += '<div class="btnrow">';
     if (!a.quar) h += `<button class="btn sm" data-act="sell" data-arg="${a.id}">💲 Vender</button><button class="btn sm" data-act="conserve" data-arg="${a.id}">🌍 Programa de conservação</button><button class="btn sm" data-act="moveAnimal" data-arg="${a.id}">🔀 Mover</button>`;
-    if (FP.Health.enabled()) h += a.quar ? `<button class="btn sm primary" data-act="release" data-arg="${a.id}">✅ Liberar da quarentena</button>` : `<button class="btn sm" data-act="quarantine" data-arg="${a.id}">🏥 Quarentena</button>`;
+    if (FP.Health.enabled() || a.quar) h += a.quar ? `<button class="btn sm primary" data-act="release" data-arg="${a.id}">✅ Liberar da quarentena</button><button class="btn sm" data-act="moveAnimal" data-arg="${a.id}">🔀 Liberar em outro recinto</button>` : `<button class="btn sm" data-act="quarantine" data-arg="${a.id}">🏥 Quarentena</button>`;
     if (!a.quar) h += `<button class="btn sm ghost" data-act="locate" data-arg="${a.id}">📍 Localizar</button>`;
     if (enc) h += `<button class="btn sm ghost" data-act="openEnc" data-arg="${enc.id}">🧱 Ver recinto</button>`;
     h += '</div>';
@@ -872,15 +893,20 @@ const ACT = {
   },
   moveAnimal: id => {
     const G = FP.G, a = G.animals.find(x => x.id === +id); if (!a) return;
-    const opts = Object.values(G.enclosures).filter(e => e.id !== a.enc);
+    const opts = a.quar ? FP.Health.releaseTargets(a).concat(Object.values(G.enclosures).filter(e => !FP.Health.releaseTargets(a).includes(e))) : Object.values(G.enclosures).filter(e => e.id !== a.enc);
     if (!opts.length){ UI.toast('Não há outro recinto.', 'error'); return; }
-    UI.modal(`<h2>Mover ${esc(a.name)}</h2><div class="list">${opts.map(e => `<div class="row"><div><b>${esc(e.name)}</b><br><small>Habitat ${FP.World.habitat(G, e, a.sp)}% · ${FP.World.encAnimals(G, e).length} animais</small></div><button class="btn sm" data-mv="${e.id}">Mover</button></div>`).join('')}</div><div class="modal-actions"><button class="btn ghost" data-close>Cancelar</button></div>`);
+    UI.modal(`<h2>${a.quar ? 'Liberar ' + esc(a.name) + ' em' : 'Mover ' + esc(a.name)}</h2><div class="list">${opts.map(e => `<div class="row"><div><b>${esc(e.name)}</b><br><small>Habitat ${FP.World.habitat(G, e, a.sp)}% · ${FP.World.encAnimals(G, e).length} animais${FP.World.encAnimals(G, e).some(x => x.sp === a.sp) ? ' · grupo da mesma espécie' : ''}</small></div><button class="btn sm" data-mv="${e.id}">${a.quar ? 'Liberar aqui' : 'Mover'}</button></div>`).join('')}</div><div class="modal-actions"><button class="btn ghost" data-close>Cancelar</button></div>`);
     document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const r = FP.Market.move(a, G.enclosures[b.dataset.mv]); UI.closeModal(); UI.toast(r.ok ? 'Animal transferido.' : r.msg, r.ok ? 'good' : 'error'); if (r.ok) UI.openAnimal(a.id); });
   },
   quarantine: id => { const a = FP.G.animals.find(x => x.id === +id); const r = FP.Health.sendQuarantine(a); UI.toast(r.ok ? 'Enviado à quarentena.' : r.msg, r.ok ? 'good' : 'error'); panelRender(); },
-  release: id => { const a = FP.G.animals.find(x => x.id === +id); if (a.sick){ UI.confirm('Liberar animal doente?', 'O animal ainda está doente e pode contaminar outros.', () => { const r = FP.Health.release(a); UI.toast(r.ok ? 'Liberado.' : r.msg, r.ok ? 'good' : 'error'); panelRender(); }); return; } const r = FP.Health.release(a); UI.toast(r.ok ? 'Liberado da quarentena.' : r.msg, r.ok ? 'good' : 'error'); panelRender(); },
+  release: id => {
+    const a = FP.G.animals.find(x => x.id === +id); if (!a) return;
+    const go = () => { const r = FP.Health.release(a); UI.toast(r.ok ? 'Liberado da quarentena.' + (r.msg ? ' ' + r.msg : '') : r.msg, r.ok ? 'good' : 'error'); if (panelRender) panelRender(); };
+    if (a.sick){ UI.confirm('Liberar animal doente?', 'O animal ainda está doente e pode contaminar outros.', go); return; }
+    go();
+  },
   locate: id => { const a = FP.G.animals.find(x => x.id === +id); if (a) FP.Render.centerOn(a.x, a.y); },
-  demolishObj: id => { const G = FP.G, o = G.objects[id]; if (!o) return; const d = FP.World.objDef(o); FP.Economy.earn(Math.round(d.custo * .4), 'reembolsos'); const ei = G.enc[U.idx(o.x, o.y)]; if (ei >= 0) G.enclosures[ei].dirty = true; FP.World.removeObject(G, +id); FP.World.refreshNetwork(G); FP.Audio.play('demolish'); UI.closePanels(); },
+  demolishObj: id => { const G = FP.G, o = G.objects[id]; if (!o) return; const d = FP.World.objDef(o); FP.Undo.commit(FP.Undo.snap('remoção de ' + d.nome)); FP.Economy.earn(Math.round(d.custo * .4), 'reembolsos'); const ei = G.enc[U.idx(o.x, o.y)]; if (ei >= 0) G.enclosures[ei].dirty = true; FP.World.removeObject(G, +id); FP.World.refreshNetwork(G); FP.Audio.play('demolish'); UI.closePanels(); },
   hire: r => { const res = FP.Staff.hire(r); UI.toast(res.ok ? `${FP.STAFF[r].nome} ${esc(res.s.name)} contratado(a)!` : res.msg, res.ok ? 'good' : 'error'); panelRender(); },
   fire: id => { const s = FP.G.staff.find(x => x.id === +id); UI.confirm('Demitir', `Demitir ${esc(s.name)}? Custo de rescisão: ${U.money(s.salary * 3)}.`, () => { FP.Staff.fire(+id); panelRender(); }); },
   assign: (id, el) => { const s = FP.G.staff.find(x => x.id === +id); s.assign = +el.value; s.path = []; },

@@ -460,6 +460,49 @@ M3.decoGeo = function(type, variant){
       mb.add(S.cyl(.02, .02, .36, 8), {x: -.18, y: .6, rz: -Math.PI / 2}, wood);
       mb.add(S.sphere(10, 8), {x: .25, y: .3, s: .07}, '#e8574b');
       break; }
+    /* ---------------- v2.3: comedouro e novos brinquedos ---------------- */
+    case 'comedouro': {
+      const wood = (x, y, z) => lerpC('#5a3a22', '#8a6040', fbm(x * 8, y * 18, z * 8) * 1.2);
+      [[-.32, -.16], [.32, -.16], [-.32, .16], [.32, .16]].forEach(([x, z]) => mb.add(S.cyl(.03, .035, .32, 8), {x, z}, wood));
+      mb.add(S.rbox(.78, .16, .4, .03, 2), {y: .3}, wood);
+      mb.add(S.rbox(.68, .04, .3, .01, 1), {y: .44}, (x, y, z) => lerpC('#b8a040', '#e0cc6a', fbm(x * 30, y, z * 30) * 1.4));
+      mb.add(S.sphere(8, 6), {x: -.15, y: .48, s: .05}, '#e8574b'); mb.add(S.sphere(8, 6), {x: .12, y: .48, z: .05, s: .045}, '#7BC86C'); mb.add(S.sphere(8, 6), {x: .02, y: .49, z: -.06, s: .04}, '#F2B33D');
+      break; }
+    case 'tunel': {
+      const bark = (x, y, z) => lerpC('#5a3a22', '#9a7048', fbm(x * 6, y * 20, z * 20) * 1.3);
+      mb.add(S.cyl(.24, .24, .8, 16, true), {y: .24, rz: Math.PI / 2, x: -.4}, bark);
+      mb.add(S.torus(.24, .035, 8, 18), {x: -.4, y: .24, ry: Math.PI / 2}, '#c9a36a'); mb.add(S.torus(.24, .035, 8, 18), {x: .4, y: .24, ry: Math.PI / 2}, '#c9a36a');
+      break; }
+    case 'bola_gigante':
+      mb.add(S.sphere(24, 16), {y: .38, s: .38}, (x, y, z, nx, ny, nz) => { const a = Math.atan2(nz, nx); const k = Math.floor((a + Math.PI) / (Math.PI / 2)); return col(['#2E8FB8', '#F2B33D', '#e8574b', '#7BC86C'][k % 4]); });
+      break;
+    case 'picole_frutas':
+      mb.add(S.rbox(.34, .42, .3, .06, 2), {}, (x, y, z) => lerpC('#cfeaf8', '#9fd4ee', fbm(x * 12, y * 12, z * 12)));
+      [[-.06, .3, .16, '#e8574b'], [.08, .18, .16, '#F2B33D'], [-.02, .1, .16, '#7BC86C'], [.1, .32, .1, '#a04ab8']].forEach(([x, y, z, c]) => mb.add(S.sphere(8, 6), {x, y, z, s: .045}, c));
+      break;
+    case 'saco_aroma': {
+      const wood = (x, y, z) => lerpC('#6a4426', '#9a6a3e', fbm(x * 8, y * 18, z * 8) * 1.2);
+      mb.add(S.cyl(.04, .05, 1.1, 8), {x: -.3}, wood); mb.add(S.cyl(.035, .035, .45, 8), {x: -.3, y: 1.05, rz: -Math.PI / 2}, wood);
+      mb.add(S.cyl(.008, .008, .3, 4), {x: .1, y: .78}, '#d8b878');
+      mb.add(S.lathe('saco', [[0, 0], [.12, .02], [.15, .15], [.12, .3], [.04, .36], [0, .37]], 14), {x: .1, y: .42}, (x, y, z) => lerpC('#a8854a', '#d0b070', fbm(x * 30, y * 30, z * 30) * 1.3));
+      break; }
+    case 'escorregador':
+      mb.add(S.rbox(.3, .6, .3, .04, 2), {x: -.3, z: 0}, '#d8d2c4');
+      mb.add(S.rbox(.26, .04, .9, .02, 2), {x: .1, y: .32, rx: 0, rz: -.62, ry: Math.PI / 2}, '#2E8FB8');
+      mb.add(S.rbox(.3, .06, .3, .02, 2), {x: -.3, y: .62}, '#F2B33D');
+      break;
+    case 'espelho':
+      mb.add(S.cyl(.03, .035, .5, 8), {}, '#5a3a1a');
+      mb.add(S.rbox(.36, .42, .05, .03, 2), {y: .62}, '#8a5a2b');
+      mb.add(S.rbox(.3, .36, .01, .01, 1), {y: .62, z: .03}, '#cfe8f4');
+      break;
+    case 'monte_folhas':
+      for (let i = 0; i < 9; i++){ const a = i * 2.4, d = .05 + (i % 3) * .09; mb.add(S.blob(1, .3, i, 2, .5), {x: Math.cos(a) * d, y: .06, z: Math.sin(a) * d, sx: .14, sy: .07, sz: .12}, ['#8a6a2a', '#b0802a', '#c9a040', '#6a8a2a'][i % 4]); }
+      break;
+    case 'orbe_magico':
+      mb.add(S.cyl(.12, .16, .3, 10), {}, '#5a4a7a');
+      mb.add(S.sphere(20, 14), {y: .5, s: .2}, (x, y, z) => lerpC('#6a3ab8', '#e8d8ff', fbm(x * 9, y * 9, z * 9) * 1.4));
+      break;
     case 'boia':
       mb.add(S.torus(.2, .07, 12, 28), {y: .02, rx: Math.PI / 2}, (x, y, z) => { const a = Math.atan2(z, x); return Math.floor((a + Math.PI) / (Math.PI / 4)) % 2 ? col('#e8574b') : col('#f8f8f8'); });
       mb.add(S.sphere(12, 8), {x: .3, y: .04, z: .1, s: .08}, '#f2b33d');
@@ -922,12 +965,137 @@ function wingSDF(w, side){
   return S;
 }
 
+
+/* =========================================================
+   v2.3: QUADRÚPEDES COM ANATOMIA ESCULPIDA NO BLENDER
+   Cada grupo (felino, canídeo, cervídeo, equino, pesado, urso, pequeno,
+   mustelídeo, camelo, girafa) tem corpo e pernas próprios (js/animal_meshes.js).
+   A espécie ajusta o tamanho e recebe pelagem, orelhas, olhos, focinho,
+   cauda, juba/crina e chifres próprios.
+   ========================================================= */
+const ARCH = {
+  leao: 'felino', onca: 'felino', tigre: 'felino', guepardo: 'felino', caracal: 'felino', leopardo_neves: 'felino',
+  lobo_guara: 'canideo', feneco: 'canideo', raposa_artica: 'canideo', lobo_artico: 'canideo', hiena: 'canideo',
+  impala: 'cervideo', veado_campeiro: 'cervideo', cervo_pantanal: 'cervideo', rena: 'cervideo', orix: 'cervideo', gnu: 'cervideo',
+  zebra: 'equino', unicornio: 'equino', pegaso: 'equino', kirin: 'equino',
+  rinoceronte: 'pesado', hipopotamo: 'pesado', anta: 'pesado', facocero: 'pesado',
+  urso_polar: 'urso', panda: 'urso',
+  capivara: 'pequeno', quati: 'pequeno', panda_vermelho: 'pequeno',
+  ariranha: 'mustelideo', suricato: 'mustelideo', tamandua: 'mustelideo',
+  camelo: 'camelo', girafa: 'girafa'
+};
+M3.ARCH = ARCH;
+const EAR = {felino: 'redonda', canideo: 'pontuda', cervideo: 'folha', equino: 'folha', pesado: 'pequena', urso: 'redonda', pequeno: 'redonda', mustelideo: 'pequena', camelo: 'folha', girafa: 'folha'};
+function amGeometry(d, sx, sy, sz){
+  const n = d.p.length / 3, pos = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++){ pos[k * 3] = d.p[k * 3] / 100 * sx; pos[k * 3 + 1] = d.p[k * 3 + 1] / 100 * sy; pos[k * 3 + 2] = d.p[k * 3 + 2] / 100 * sz; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(d.i); g.computeVertexNormals();
+  return g;
+}
+function buildArch(v, sex, spId, an){
+  const A = FP.AMESH.bodies[an], m = A.meta;
+  const sL = v.L / m.ref[0], sW = v.Wd / m.ref[1];
+  const bodyG = amGeometry(A, sL, sW, sW);
+  const P = bodyG.attributes.position;
+  // medidas do corpo já na escala da espécie
+  let by = 1e9, top = -1e9, nose = null;
+  const hx = m.head[0] * sL, hy = m.head[1] * sW, cab = m.head[2] * (sL + sW) / 2;
+  for (let k = 0; k < P.count; k++){
+    const x = P.getX(k), y = P.getY(k);
+    if (Math.abs(x) < v.L * .12){ by = Math.min(by, y); top = Math.max(top, y); }
+    if (y > hy - cab * 1.3 && (!nose || x > nose[0])) nose = [x, y, 0];
+  }
+  const bh = Math.max(1, top - by);
+  const topAt = x => { let t = by + bh; for (let k = 0; k < P.count; k++) if (Math.abs(P.getX(k) - x) < 1.2 && Math.abs(P.getZ(k)) < 1.5) t = Math.max(t, P.getY(k)); return t; };
+  const neckX = m.neckX * sL;
+  // ponto da superfície da cabeça numa direção (olhos e orelhas ficam sempre por fora)
+  const surf = (dx, dy, dz) => { const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l; let best = -1e9, bp = [hx + dx * cab, hy + dy * cab, dz * cab];
+    for (let k = 0; k < P.count; k++){ const x = P.getX(k) - hx, y = P.getY(k) - hy, z = P.getZ(k); const d2 = x * x + y * y + z * z; if (d2 > cab * cab * 4.5) continue; const dot = (x * dx + y * dy + z * dz) / Math.sqrt(d2 || 1); const sc = dot * 2 + Math.sqrt(d2) / cab * .15; if (dot > .9 && sc > best){ best = sc; bp = [P.getX(k), P.getY(k), P.getZ(k)]; } }
+    return bp; };
+  const fur = furPattern(v, by, bh, v.L, v.Wd, 'body'), furN = furPattern(v, by, bh, v.L, v.Wd, 'neck'), furL = furPattern(v, by, bh, v.L, v.Wd, 'leg');
+  const furTone = (c, x, y, z) => c.clone().multiplyScalar(1 + (fbm(x * .9, y * .9, z * .9, 2) - .5) * .16 + (vnoise(x * 3.1, y * 3.1, z * 3.1) - .5) * .08);
+  const mb = new MB();
+  mb.add(bodyG, {}, (x, y, z) => furTone((x > neckX ? furN : fur)(x, y, z), x, y, z));
+  // olhos, focinho e máscara
+  const eyeP = surf(.55, .3, .75), eyeX = eyeP[0] - cab * .04, eyeY = eyeP[1], eyeZ = Math.abs(eyeP[2]) - cab * .03;
+  if (v.mascara) [-1, 1].forEach(s2 => mb.add(SH.sphere(10, 8), {x: eyeX - cab * .05, y: eyeY, z: s2 * eyeZ * .95, sx: cab * .3, sy: cab * .24, sz: cab * .2}, v.mascara));
+  [-1, 1].forEach(s2 => { mb.add(SH.sphere(10, 8), {x: eyeX, y: eyeY, z: s2 * eyeZ, s: cab * .15}, v.olhos || '#140f0c'); mb.add(SH.sphere(6, 4), {x: eyeX + cab * .08, y: eyeY + cab * .07, z: s2 * (eyeZ + cab * .06), s: cab * .045}, '#ffffff'); });
+  if (nose) mb.add(SH.sphere(10, 8), {x: nose[0] - cab * .06, y: nose[1] + cab * .04, z: 0, sx: cab * .16, sy: cab * .13, sz: cab * .22}, '#241a14');
+  // focinho longo (tamanduá)
+  if (nose && (v.focinho || 0) > 5) mb.add(S_tube('snout' + v.focinho + cab.toFixed(1), [[nose[0] - cab * .3, nose[1], 0], [nose[0] + v.focinho * .45, nose[1] - cab * .35, 0], [nose[0] + v.focinho * .8, nose[1] - cab * .6, 0]], [cab * .3, cab * .2, cab * .12]), {}, (x, y, z) => furTone(col(v.cor), x, y, z));
+  // orelhas
+  const earCol = v.orelhasCor || mulC(v.cor, .78), inner = lerpC(v.cor, '#f4d8c8', .55);
+  const earP = surf(-.3, .9, .5), ex = earP[0], ey = earP[1] - cab * .12, ez = Math.abs(earP[2]);
+  const type = v.orelhas >= 4 ? 'grande' : EAR[an];
+  [-1, 1].forEach(s2 => {
+    if (type === 'pontuda' || type === 'grande'){
+      const h = (v.orelhas || 2.6) * .9 * (type === 'grande' ? 1.1 : 1);
+      mb.add(SH.cone(1, 1, 10), {x: ex, y: ey - cab * .1, z: s2 * ez, sx: cab * .32 + h * .05, sy: h, sz: cab * .16, rx: s2 * .25}, earCol);
+      if (v.orelhas >= 4.4 && an === 'felino') mb.add(SH.cone(1, 1, 6), {x: ex, y: ey + h * .92, z: s2 * (ez + h * .2), sx: cab * .05, sy: h * .35, sz: cab * .05, rx: s2 * .25}, '#1a1410');
+    } else if (type === 'folha'){
+      mb.add(SH.sphere(10, 8), {x: ex - cab * .1, y: ey + cab * .1, z: s2 * (ez + cab * .25), sx: cab * .18, sy: cab * .48, sz: cab * .12, rx: s2 * .9}, earCol);
+    } else {
+      const r = type === 'pequena' ? cab * .2 : cab * .3;
+      mb.add(SH.sphere(10, 8), {x: ex, y: ey, z: s2 * ez, sx: r * .65, sy: r, sz: r}, earCol);
+      mb.add(SH.sphere(8, 6), {x: ex + r * .35, y: ey, z: s2 * ez, sx: r * .3, sy: r * .7, sz: r * .7}, inner);
+    }
+  });
+  // juba dos machos e crina
+  if (v.juba && sex === 'M') mb.add(SH.blob(2, .3, 3, 2.2, .9), {x: hx - cab * .65, y: hy - cab * .15, z: 0, sx: cab * 1.05, sy: cab * 1.4, sz: cab * 1.35}, (x, y, z) => lerpC(v.juba, mulC(v.juba, .7), fbm(x * .8, y * .8, z * .8, 2) * 1.2));
+  if (v.crina && an !== 'cervideo'){
+    const x0 = Math.max(m.front[0] * sL - v.L * .05, neckX - v.L * .12), x1 = hx - cab * .45;
+    // crina: acompanha o alto do pescoço (um pouco para dentro, para não descolar do corpo)
+    const pts = [0, .25, .5, .75, 1].map(t => { const x = x0 + (x1 - x0) * t; return [x, Math.min(topAt(x), t === 1 ? hy + cab * .6 : 1e9) - cab * .12, 0]; });
+    mb.add(S_tube('crina' + spId + sex, pts, [cab * .2, cab * .24, cab * .24, cab * .22, cab * .14]), {sz: .55}, (x, y, z) => lerpC(v.crina, mulC(v.crina, .75), fbm(x * 2, y * 2, z * 2)));
+  }
+  // chifres, galhadas e chifre espiral: reaproveita o desenho das espécies (só os acessórios)
+  const fakeS = {e(){ return this; }, c(){ return this; }, chain(){ return this; }, extra: mb};
+  const vh = Object.assign({}, v, {chifre: null, orelhas: null});
+  headQuad(fakeS, vh, sex, hx, hy + cab * .05, cab, null);
+  if (v.chifre && nose){ // rinoceronte: chifres sobre o focinho
+    mb.add(SH.cone(1, 1, 12), {x: nose[0] - cab * .35, y: nose[1] + cab * .3, z: 0, sx: cab * .32, sy: cab * 1.25, sz: cab * .3, rz: -.35}, gradFn('#a9a290', v.chifre, nose[1], nose[1] + cab * 1.3, .1));
+    mb.add(SH.cone(1, 1, 10), {x: nose[0] - cab * .85, y: nose[1] + cab * .45, z: 0, sx: cab * .2, sy: cab * .6, sz: cab * .2, rz: -.3}, v.chifre);
+  }
+  // cauda
+  if (v.cauda){
+    const tx = m.tail[0] * sL, ty = m.tail[1] * sW, len = v.cauda, peluda = v.caudaPeluda;
+    const pts = [[tx + 1, ty, 0], [tx - len * .35, ty - len * .12, 0], [tx - len * .7, ty - len * .45, 0], [tx - len * .85, ty - len * .8, 0]];
+    const th = peluda ? Math.max(1.3, v.Wd * .18) : Math.max(.45, v.Wd * .045);
+    const cf = (x, y, z) => v.caudaAneis && Math.sin((x - tx) * 1.5) > 0 ? col(v.caudaAneis) : furTone(col(v.cor), x, y, z);
+    mb.add(S_tube('cauda' + spId, pts, peluda ? [th * .6, th, th * .9, th * .45] : [th * 1.5, th * 1.1, th, th * .9]), {}, cf);
+    if (!peluda && (v.crina || v.juba || an === 'felino' || an === 'equino')) mb.add(SH.blob(1, .25, 5, 2, 1), {x: pts[3][0], y: pts[3][1] - .3, z: 0, sx: th * 1.8, sy: th * 2.6, sz: th * 1.8}, v.crina || v.juba || mulC(v.cor, .55));
+  }
+  // pernas esculpidas no Blender
+  const herb = spId && FP.SPECIES[spId] && !FP.SPECIES[spId].pred;
+  const hoofC = col('#2a221c');
+  const limbs = [];
+  [['front', 0, 1], ['front', 0, -1], ['hind', 1, 1], ['hind', 1, -1]].forEach(([w, li, s2], i) => {
+    const a = m[w], legLen = a[1] * sW, r = m.legR[li] * sW * (an === 'girafa' ? 1.3 : an === 'cervideo' ? 1.12 : 1);
+    const d = FP.AMESH.legs[m.leg + (li ? '_h' : '_f')];
+    const lg = amGeometry(d, r / .12, legLen, r / .12);
+    const lmb = new MB();
+    lmb.add(lg, {}, (x, y, z) => (m.leg === 'hoof' && herb && y < -legLen * .9) ? hoofC : furTone(furL(x + a[0] * sL, y + legLen, z), x, y, z));
+    limbs.push({geo: lmb.geo(1 / T * 1.12), x: a[0] * sL / T * 1.12, y: legLen / T * 1.12, z: s2 * a[2] * sW / T * 1.12, phase: (i === 0 || i === 3) ? 0 : Math.PI, amp: an === 'pesado' || an === 'urso' ? .35 : .55});
+  });
+  const legLen = Math.min(m.front[1], m.hind[1]) * sW;
+  return {body: mb.geo(1 / T * 1.12), limbs, wings: null, legLen: legLen / T * 1.12, waddle: false, slide: false, low: false,
+    wingsAt: v.asas ? {x: m.front[0] * sL * .2, y: topAt(m.front[0] * sL * .4) - cab * .2, z: v.Wd * .42, span: v.L * .75, chord: v.L * .4, color: v.asas} : null};
+}
+
 const modelCache = new Map();
 M3.hasModel = (spId, sexKey) => modelCache.has(spId + '|' + sexKey);
 M3.animalModel = function(spId, sexKey){
   const key = spId + '|' + sexKey;
   if (modelCache.has(key)) return modelCache.get(key);
   const sp = FP.SPECIES[spId], v = sp.vis;
+  if (v.tipo === 'quad' && ARCH[spId] && FP.AMESH && FP.AMESH.bodies[ARCH[spId]]){
+    const out = buildArch(v, sexKey === 'X' ? 'M' : sexKey, spId, ARCH[spId]);
+    if (out.wingsAt){ const w = out.wingsAt, wr = Math.max(16, Math.round(30 * (FP.R3 && FP.R3.modelDetail ? FP.R3.modelDetail() : 1))); out.wings = {L: wingSDF(w, 1).mesh(wr), R: wingSDF(w, -1).mesh(wr), x: w.x / T * 1.12, y: w.y / T * 1.12, z: w.z / T * 1.12 * .6}; }
+    modelCache.set(key, out);
+    return out;
+  }
   const B = {quad: buildQuad, elefante: buildEleph, reptil: buildRept, ave: buildBird, pinguim: buildPeng, casco: buildShell, primata: buildPrim, grifo: buildGrif, dragao: buildDrag, foca: buildSeal, cobra: buildSnake};
   const r = (B[v.tipo] || buildQuad)(v, sexKey === 'X' ? 'M' : sexKey, spId);
   // v7.2: no celular, a malha é extraída numa grade menor (o custo cresce com o cubo da resolução)

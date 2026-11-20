@@ -247,7 +247,8 @@ FP.DECOS = {
   pedra:       {nome:'Pedra',              custo:50,  planta:false, biomas:[], beleza:2, copa:false, bloqueia:true},
   tronco:      {nome:'Tronco caído',       custo:45,  planta:false, biomas:[], beleza:2, copa:false, bloqueia:true},
   abrigo:      {nome:'Abrigo para animais',custo:600, planta:false, biomas:[], beleza:1, copa:false, bloqueia:true, abrigo:true},
-  bebedouro:   {nome:'Bebedouro animal',   custo:250, planta:false, biomas:[], beleza:0, copa:false, bloqueia:true, agua:true},
+  bebedouro:   {nome:'Bebedouro animal',   custo:250, planta:false, biomas:[], beleza:0, copa:false, bloqueia:true, agua:true, soRecinto:true, desc:'Água limpa para beber. Basta para animais que não precisam nadar; quem precisa de piscina (hipopótamo, jacaré, pinguim…) ainda precisa de lago.'},
+  comedouro:   {nome:'Comedouro',          custo:220, planta:false, biomas:[], beleza:0, copa:false, bloqueia:true, comedouro:true, soRecinto:true, desc:'A comida fica protegida: os animais ficam saciados por mais tempo (-25% de fome) e cada refeição rende mais (-15% de ração).'},
   escalada:    {nome:'Estrutura de escalada', custo:450, planta:false, biomas:[], beleza:1, copa:false, bloqueia:true, enriq:true},
   cupinzeiro:  {nome:'Cupinzeiro',         custo:120, planta:false, biomas:[], beleza:1, copa:false, bloqueia:true, enriq:true},
   gelo_bloco:  {nome:'Bloco de gelo',      custo:200, planta:false, biomas:[], beleza:2, copa:false, bloqueia:true, enriq:true, stage:4},
@@ -256,7 +257,7 @@ FP.DECOS = {
   /* v2.0: postes e placas ficam na BORDA do caminho (naBorda) e não bloqueiam a passagem */
   poste:       {nome:'Poste de luz',       custo:120, planta:false, biomas:[], beleza:2, copa:false, bloqueia:false, foraRecinto:true, luz:true, naBorda:true, alcance:4},
   poste_duplo: {nome:'Poste duplo (praça)',custo:260, planta:false, biomas:[], beleza:4, copa:false, bloqueia:false, foraRecinto:true, luz:true, naBorda:true, alcance:6, stage:2},
-  luminaria:   {nome:'Luminária de jardim',custo:60,  planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, luz:true, alcance:2},
+  luminaria:   {nome:'Luminária de jardim',custo:60,  planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, luz:true, alcance:2, naBorda:true},
   holofote:    {nome:'Holofote do recinto',custo:220, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, luz:true, alcance:5, soRecinto:true, stage:2},
   placa:       {nome:'Placa educativa',    custo:150, planta:false, biomas:[], beleza:2, copa:false, bloqueia:false, foraRecinto:true, educa:true, naBorda:true},
   /* v7.1: BRINQUEDOS para os animais (dentro dos recintos). gosto: grupos de espécies que adoram o brinquedo */
@@ -268,8 +269,18 @@ FP.DECOS = {
   quebra_cabeca: {nome:'Comedouro quebra-cabeça',custo:220, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['primata','predador','elefante','grande']},
   rede_cordas:   {nome:'Rede de cordas',         custo:280, planta:false, biomas:[], beleza:2, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['primata','escalador']},
   poleiro:       {nome:'Poleiro com balanço',    custo:120, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['ave']},
-  boia:          {nome:'Boia flutuante',         custo:110, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, naAgua:true, gosto:['nadador']}
+  boia:          {nome:'Boia flutuante',         custo:110, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, naAgua:true, gosto:['nadador']},
+  /* v2.3: novos brinquedos */
+  tunel:         {nome:'Túnel de troncos',       custo:130, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['pequeno']},
+  bola_gigante:  {nome:'Bola gigante',           custo:160, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['elefante','grande']},
+  picole_frutas: {nome:'Picolé de frutas',       custo:100, planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['primata','polar']},
+  saco_aroma:    {nome:'Saco de aromas',         custo:120, planta:false, biomas:[], beleza:0, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['felino']},
+  escorregador:  {nome:'Escorregador aquático',  custo:300, planta:false, biomas:[], beleza:2, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['nadador'], stage:2},
+  espelho:       {nome:'Espelho para aves',      custo:90,  planta:false, biomas:[], beleza:1, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['ave']},
+  monte_folhas:  {nome:'Monte de folhas e sementes', custo:60, planta:false, biomas:[], beleza:0, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['herbivoro','pequeno']},
+  orbe_magico:   {nome:'Orbe mágico',            custo:800, planta:false, biomas:[], beleza:4, copa:false, bloqueia:false, soRecinto:true, brinquedo:true, gosto:['fantastico'], stage:5}
 };
+const FELINOS = ['leao','onca','tigre','guepardo','caracal','leopardo_neves'];
 /* Grupos de gosto de uma espécie (para os brinquedos) */
 FP.toyTags = function(spId){
   const sp = FP.SPECIES[spId], v = sp.vis, t = new Set(['todos', v.tipo]);
@@ -279,6 +290,10 @@ FP.toyTags = function(spId){
   if (v.L >= 30) t.add('grande');
   if (sp.enriq === 'escalada') t.add('escalador');
   if (v.tipo === 'pinguim') t.add('nadador');
+  if (v.L < 16 && v.tipo !== 'ave' && !sp.voa) t.add('pequeno');
+  if (FELINOS.includes(spId)) t.add('felino');
+  if (sp.bioma === 'polar') t.add('polar');
+  if (sp.bioma === 'fantastico') t.add('fantastico');
   return t;
 };
 FP.toyLiked = (toyType, spId) => { const d = FP.DECOS[toyType]; if (!d || !d.brinquedo) return false; const t = FP.toyTags(spId); return d.gosto.some(g => t.has(g)); };
@@ -293,10 +308,10 @@ FP.BUILDINGS = {
   sorvete:    {nome:'Sorveteria',           w:1, h:1, custo:1600,  manut:14, tipo:'visitante', atende:'sede', venda:9, custoVenda:3, cor:'#f49ac1', icone:'🍦', desc:'Bebidas geladas e sorvetes.', stage:2},
   restaurante:{nome:'Restaurante',          w:3, h:3, custo:12000, manut:90, tipo:'visitante', atende:'fome', venda:32, custoVenda:12, cor:'#C8553D', icone:'🍽️', desc:'Refeições completas, alta satisfação.', stage:2, bonus:6},
   banheiro:   {nome:'Banheiros',            w:2, h:2, custo:2500,  manut:25, tipo:'visitante', atende:'banheiro', venda:0, cor:'#7FC8E8', icone:'🚻', desc:'Indispensável para o conforto dos visitantes.'},
-  banco:      {nome:'Banco',                w:1, h:1, custo:150,   manut:1,  tipo:'visitante', atende:'energia', venda:0, cor:'#8a5a2b', icone:'🪑', desc:'Descanso. Coloque ao lado do caminho.'},
-  lixeira:    {nome:'Lixeira',              w:1, h:1, custo:100,   manut:2,  tipo:'visitante', atende:null, venda:0, cor:'#4a5a4a', icone:'🗑️', desc:'Reduz o lixo jogado no chão num raio de 6 tiles.'},
+  banco:      {nome:'Banco',                w:1, h:1, custo:150,   manut:1,  tipo:'visitante', atende:'energia', venda:0, cor:'#8a5a2b', icone:'🪑', desc:'Descanso. Pode ficar na borda do próprio caminho.', noCaminho:true},
+  lixeira:    {nome:'Lixeira',              w:1, h:1, custo:100,   manut:2,  tipo:'visitante', atende:null, venda:0, cor:'#4a5a4a', icone:'🗑️', desc:'Reduz o lixo jogado no chão num raio de 6 tiles. Pode ficar no próprio caminho.', noCaminho:true},
   loja:       {nome:'Loja de lembranças',   w:2, h:2, custo:6000,  manut:45, tipo:'visitante', atende:'compras', venda:28, custoVenda:11, cor:'#F2B33D', icone:'🎁', desc:'Pelúcias, camisetas e lembranças.'},
-  info:       {nome:'Ponto de informação',  w:1, h:1, custo:900,   manut:10, tipo:'visitante', atende:null, venda:0, cor:'#1F6B4A', icone:'ℹ️', desc:'Mapas e orientação: +satisfação ao circular.', bonus:2},
+  info:       {nome:'Ponto de informação',  w:1, h:1, custo:900,   manut:10, tipo:'visitante', atende:null, venda:0, cor:'#1F6B4A', icone:'ℹ️', desc:'Mapas e orientação: +satisfação ao circular. Pode ficar no próprio caminho.', bonus:2, noCaminho:true},
   estacionamento:{nome:'Estacionamento',    w:4, h:3, custo:8000,  manut:30, tipo:'visitante', atende:null, venda:10, cor:'#5b6670', icone:'🅿️', desc:'R$ 10 por carro. 35% dos visitantes vêm de carro. 80 vagas/dia.', stage:2, foraCaminhoOk:true},
   deposito:   {nome:'Depósito de alimentos',w:2, h:2, custo:4000,  manut:20, tipo:'operacional', cor:'#7a5c3e', icone:'📦', desc:'+800 unidades de capacidade de estoque.', stage:1},
   clinica:    {nome:'Clínica veterinária',  w:3, h:2, custo:15000, manut:80, tipo:'operacional', cor:'#ffffff', icone:'🏥', desc:'Permite diagnóstico, tratamento e quarentena (6 vagas).', stage:3},

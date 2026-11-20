@@ -133,9 +133,10 @@ A.hourly = function(){
     const occ = FP.World.encOccupancy(G, enc);
     if (!occ.animals.length) return;
     const counts = {}; occ.animals.forEach(a => counts[a.sp] = (counts[a.sp] || 0) + 1);
+    const feeder = FP.World.encStats(G, enc).feeder;
     occ.animals.forEach(a => {
       const sp = FP.SPECIES[a.sp];
-      a.sat = U.clamp(a.sat - 4.6 * (A.isBaby(a) ? .8 : 1), 0, 100);
+      a.sat = U.clamp(a.sat - 4.6 * (A.isBaby(a) ? .8 : 1) * (feeder ? .75 : 1), 0, 100);
       if (a.sat < 20) a.lowSatH++; else a.lowSatH = Math.max(0, a.lowSatH - 2);
       const hab = FP.World.habitat(G, enc, a.sp);
       let crowd = 0;

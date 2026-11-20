@@ -186,7 +186,8 @@ W.canPlaceObject = function(G, kind, type, x, y){
     if (!G.owned[i]) return {ok:false, msg:'Terreno não adquirido.'};
     if (G.road[i]) return {ok:false, msg:'Não é possível construir na estrada.'};
     // v2.0: postes de luz e placas podem ficar na borda do caminho, sem bloquear a passagem
-    if (G.path[i] && !(kind === 'deco' && def.naBorda)) return {ok:false, msg:'Há um caminho aqui.'};
+    // v2.3: banco, lixeira e ponto de informação também podem ficar no próprio caminho
+    if (G.path[i] && !(kind === 'deco' && def.naBorda) && !(kind === 'building' && def.noCaminho)) return {ok:false, msg:'Há um caminho aqui.'};
     if (G.obj[i] >= 0) return {ok:false, msg:'Espaço ocupado.'};
     const water = G.ground[i] === FP.T.agua;
     if (kind === 'building'){
@@ -458,7 +459,7 @@ W.encAt = (G, x, y) => { if (!U.inMap(x, y)) return null; const e = G.enc[U.idx(
 /* ---------- Estatísticas de habitat do recinto ---------- */
 W.encStats = function(G, enc){
   if (enc.stats && !enc.dirty) return enc.stats;
-  const st = {N: enc.tiles.length, water: 0, terr: {}, plants: {}, plantCount: 0, shelter: false, waterSource: false, enrich: {}, beauty: 0, land: 0, toys: {}, toyPos: []};
+  const st = {N: enc.tiles.length, water: 0, terr: {}, plants: {}, plantCount: 0, shelter: false, waterSource: false, drinker: false, feeder: false, enrich: {}, beauty: 0, land: 0, toys: {}, toyPos: []};
   enc.tiles.forEach(i => {
     const tk = FP.TERRAINS[G.ground[i]].key;
     if (tk === 'agua'){ st.water++; st.waterSource = true; } else { st.terr[tk] = (st.terr[tk] || 0) + 1; st.land++; }
@@ -469,7 +470,8 @@ W.encStats = function(G, enc){
         const d = FP.DECOS[ob.type];
         if (d.planta){ st.plants[ob.type] = (st.plants[ob.type] || 0) + 1; st.plantCount++; }
         if (d.abrigo) st.shelter = true;
-        if (d.agua) st.waterSource = true;
+        if (d.agua){ st.waterSource = true; st.drinker = true; }
+        if (d.comedouro) st.feeder = true;
         if (d.enriq) st.enrich[ob.type] = true;
         if (d.brinquedo){ st.toys[ob.type] = (st.toys[ob.type] || 0) + 1; st.toyPos.push({x: ob.x + .5, y: ob.y + .5, type: ob.type}); }
         st.beauty += d.beleza;
@@ -488,9 +490,12 @@ W.habitat = function(G, enc, spId, detail){
   let tsum = 0;
   Object.keys(st.terr).forEach(k => tsum += (sp.terr[k] || 0) * st.terr[k]);
   const terr = st.land ? tsum / st.land : (sp.nada ? .6 : 0);
+  // v2.3: quem só precisa BEBER (agua < 10%) fica satisfeito com um bebedouro ou um pouco de lago;
+  // quem precisa NADAR/MERGULHAR (agua >= 10%: hipopótamo, jacaré, pinguim…) precisa de lago (piscinão)
   let water;
-  if (sp.agua > 0) water = Math.min(1, st.waterFrac / sp.agua);
-  else water = st.waterSource ? 1 : .35;
+  const lake = sp.agua > 0 ? Math.min(1, st.waterFrac / sp.agua) : (st.water ? 1 : 0);
+  if (W.needsLake(sp)) water = Math.max(lake, st.drinker ? (sp.agua >= .25 ? .25 : .45) : 0);
+  else water = st.waterSource ? 1 : Math.max(.35, lake);
   if (!sp.nada && st.waterFrac > .45) water *= .5;
   let pc = 0; sp.plantas.forEach(p => pc += st.plants[p] || 0);
   const fol = sp.fol > 0 ? Math.min(1, (pc / Math.max(1, st.N)) / sp.fol) : 1;
@@ -502,6 +507,36 @@ W.habitat = function(G, enc, spId, detail){
   enc.habitatCache[spId] = v;
   if (detail) return {v, terr: terr * 100, water: water * 100, fol: fol * 100, shelter: shelter * 100, enrich: enrich * 100, fun: fun * 100};
   return v;
+};
+W.needsLake = sp => sp.agua >= .1;
+/* v2.3: para quais espécies um terreno, planta, item ou brinquedo é indicado */
+W.recommend = function(kind, id){
+  const all = Object.values(FP.SPECIES);
+  let ideal = [], bom = [], nota = '';
+  if (kind === 'terrain'){
+    const t = FP.TERRAINS[id];
+    if (t.key === 'agua'){ ideal = all.filter(sp => W.needsLake(sp)); bom = all.filter(sp => !W.needsLake(sp) && sp.nada); nota = 'Lago/piscina: essencial para quem nada; para os demais, um bebedouro basta.'; }
+    else { ideal = all.filter(sp => (sp.terr[t.key] || 0) >= .9); bom = all.filter(sp => (sp.terr[t.key] || 0) >= .5 && (sp.terr[t.key] || 0) < .9); }
+  } else if (kind === 'deco'){
+    const d = FP.DECOS[id];
+    if (d.brinquedo) ideal = all.filter(sp => FP.toyLiked(id, sp.id));
+    else if (d.planta) ideal = all.filter(sp => sp.plantas.includes(id));
+    else if (d.abrigo){ ideal = all.filter(sp => sp.abrigo); nota = 'Obrigatório para essas espécies.'; }
+    else if (d.agua){ ideal = all.filter(sp => !W.needsLake(sp)); nota = 'Basta como fonte de água para quem não nada. Quem nada (hipopótamo, jacaré, pinguim…) precisa de lago.'; }
+    else if (d.comedouro){ nota = 'Bom para todos os animais: a comida dura mais e rende mais.'; }
+    else if (d.enriq){ ideal = all.filter(sp => sp.enriq === id); nota = 'Enriquecimento exigido por essas espécies.'; }
+  }
+  const order = (a, b) => (a.stage - b.stage) || a.nome.localeCompare(b.nome, 'pt');
+  return {ideal: ideal.sort(order), bom: bom.sort(order), nota};
+};
+W.recommendText = function(kind, id, max){
+  const r = W.recommend(kind, id); max = max || 7;
+  const names = l => l.slice(0, max).map(sp => sp.nome).join(', ') + (l.length > max ? ` e mais ${l.length - max}` : '');
+  let t = '';
+  if (r.ideal.length) t += 'Mais indicado para: ' + names(r.ideal) + '.';
+  if (r.bom.length) t += (t ? ' ' : '') + 'Também serve para: ' + names(r.bom) + '.';
+  if (r.nota) t += (t ? ' ' : '') + r.nota;
+  return t;
 };
 /* v7.1: diversão com brinquedos (0..1): tipos diferentes de brinquedos que a espécie adora */
 W.toyFun = function(G, enc, spId){
@@ -593,6 +628,7 @@ W.refreshNetwork = function(G){
       const j = U.idx(xx, yy);
       if (G.path[j] && reach[j]) o.doors.push(j);
     }
+    if (FP.BUILDINGS[o.type].noCaminho && G.path[U.idx(o.x, o.y)] && reach[U.idx(o.x, o.y)]) o.doors.unshift(U.idx(o.x, o.y));
     if (o.doors.length) o.door = o.doors[0];
   });
   G.pathCount = 0; for (let i = 0; i < G.path.length; i++) if (G.path[i] && reach[i]) G.pathCount++;

@@ -2,11 +2,13 @@
 
 Jogo de simulação, construção e gestão de zoológico em **3D de alta qualidade** e 2D (HTML5, roda no navegador, sem instalação).
 
-> **Versão 7.1** — veja as novidades em [`NOVIDADES_v7.1.md`](NOVIDADES_v7.1.md) (e as da 2.0 em [`NOVIDADES_v2.0.md`](NOVIDADES_v2.0.md)).
+> **Versão 2.3**: veja as novidades em [`NOVIDADES_v2.3.md`](NOVIDADES_v2.3.md). Histórico: [`NOVIDADES_v7.2.md`](NOVIDADES_v7.2.md) (2.2, celular e tablet), [`NOVIDADES_v7.1.md`](NOVIDADES_v7.1.md) (2.1) e [`NOVIDADES_v2.0.md`](NOVIDADES_v2.0.md).
 
 ## Como jogar agora
-- **Windows:** dê dois cliques em `JOGAR.bat` (ou em `index.html`).
-- **macOS / Linux:** abra `index.html` no Chrome, Edge, Firefox ou Safari.
+- **No navegador:** https://faunopolis.a2clickagencia.workers.dev
+- **Windows (instalador):** https://a2click.com.br/baixar/faunopolis
+- **Celular e tablet:** abra o site e toque em **📲 Instalar** (iPhone/iPad: Safari → Compartilhar → Adicionar à Tela de Início).
+- **Desta pasta:** dê dois cliques em `JOGAR.bat` (Windows) ou abra `index.html` no Chrome, Edge, Firefox ou Safari.
 
 ## O que tem no jogo
 - 64 espécies em 7 biomas (Savana, Brasil, Pantanal, Árido, Ásia, Polar e Área fantástica)

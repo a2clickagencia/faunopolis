@@ -11,13 +11,14 @@
 <header class="cover">
   <img src="../assets/brand/logo-negativo.svg" alt="Faunópolis">
   <h1>Manual Completo do Jogo</h1>
-  <p>Jogabilidade, sistemas, fórmulas, física, sprites, assets, interface, balanceamento e arquitetura técnica de Faunópolis — o simulador de construção e gestão de zoológico em 2D top-down.</p>
-  <div class="meta">Versão do jogo 1.0.0 · Documento 1.0 · 18 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
+  <p>Jogabilidade, sistemas, fórmulas, física, sprites, assets, interface, balanceamento e arquitetura técnica de Faunópolis — o simulador de construção e gestão de zoológico em 2D e 3D, para computador, celular e tablet.</p>
+  <div class="meta">Versão do jogo 2.3 · Documento 2.3 · 20 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
 </header>
 <div class="layout">
 <nav class="toc">
   <b>Sumário</b>
   <ol>
+    <li><a href="#novidades"><b>Novidades da versão 2.3</b></a></li>
     <li><a href="#visao">Visão geral</a></li>
     <li><a href="#inicio">Primeiros passos</a></li>
     <li><a href="#controles">Controles</a></li>
@@ -53,6 +54,69 @@
   </ol>
 </nav>
 <main>
+
+<h2 id="novidades">Novidades da versão 2.3</h2>
+<p>Resumo do que mudou desde a 2.1. A 2.2 levou o jogo para o celular e o tablet; a 2.3 deixa a construção mais rápida e corrige problemas relatados pelos jogadores.</p>
+<h3>Construção</h3>
+<ul>
+<li><b>Desfazer (Ctrl+Z ou botão ↶ na barra de construção):</b> volta a última ação de construção, demolição, pintura de terreno, colocação de item ou compra de lote, com o dinheiro devolvido. Guarda as últimas 30 ações.</li>
+<li><b>Demolir remove só o item:</b> se a área marcada com 🧨 tem itens (brinquedo, árvore, pedra, banco, poste…), só eles são removidos e o recinto ou o caminho embaixo continuam. Para demolir o recinto ou o caminho, passe a ferramenta de novo numa área sem itens.</li>
+<li><b>Terreno por área:</b> em 🏞️ Terreno e biomas, arraste um retângulo como ao desenhar um recinto; a prévia mostra os tiles que mudam e o custo. O pincel (1×1, 3×3, 5×5) continua no botão 🖌️ Pincel.</li>
+<li><b>⛰️ Aterrar água:</b> arraste sobre qualquer área e só a água vira terra firme (grama, ou o último terreno escolhido). Água com aguapés ou boias precisa ser limpa antes.</li>
+<li><b>Itens no caminho:</b> banco, lixeira e ponto de informação podem ficar no próprio caminho (na borda, menores, sem bloquear a passagem), como já acontecia com postes e placas. A luminária de jardim também passou a ficar na borda.</li>
+</ul>
+<h3>Itens indicados para cada animal</h3>
+<p>Na gaveta de Terreno, Vegetação, Decoração e Brinquedos, passe o mouse sobre um item (ou toque nele): aparece “Mais indicado para” e “Também serve para”, com as espécies. A dica no topo da tela repete a indicação enquanto a ferramenta estiver ativa.</p>
+<table>
+<tr><th>Item</th><th>Como a indicação é calculada</th></tr>
+<tr><td>Terreno</td><td>Afinidade da espécie com o terreno: ≥ 90% = mais indicado; 50–89% = também serve. Água: indicada para quem precisa de lago.</td></tr>
+<tr><td>Plantas</td><td>Espécies que apreciam a planta (contam para “Vegetação” no habitat).</td></tr>
+<tr><td>Abrigo, cupinzeiro, estrutura de escalada, bloco de gelo, cristal</td><td>Espécies que exigem o item.</td></tr>
+<tr><td>Brinquedos</td><td>Grupos que adoram o brinquedo (veja a tabela abaixo).</td></tr>
+</table>
+<h3>Água, bebedouro e comedouro</h3>
+<ul>
+<li><b>Quem só precisa beber</b> (água desejada abaixo de 10% do recinto): um <b>bebedouro</b> basta e o recinto não precisa de lago.</li>
+<li><b>Quem precisa nadar ou mergulhar</b> (10% ou mais: hipopótamo, jacaré, capivara, anta, ariranha, pinguim, foca, morsa…): precisa de <b>lago/piscina</b> na fração indicada; o bebedouro rende só 25–45% da nota de água.</li>
+<li><b>🍽️ Comedouro (R$ 220):</b> no recinto, os animais sentem 25% menos fome por hora e cada refeição gasta 15% menos ração.</li>
+<li>O painel do recinto mostra se há bebedouro e comedouro e avisa quando há espécie que precisa de lago.</li>
+</ul>
+<h3>Brinquedos (17)</h3>
+<table>
+<tr><th>Brinquedo</th><th>Preço</th><th>Adorado por</th></tr>
+<tr><td>Bola de enriquecimento</td><td>R$ 80</td><td>mamíferos, elefantes, primatas, focas</td></tr>
+<tr><td>Caixa de petiscos</td><td>R$ 90</td><td>todos</td></tr>
+<tr><td>Pneu suspenso</td><td>R$ 150</td><td>primatas e predadores</td></tr>
+<tr><td>Tronco arranhador</td><td>R$ 140</td><td>predadores</td></tr>
+<tr><td>Escova de coçar</td><td>R$ 180</td><td>herbívoros e elefantes</td></tr>
+<tr><td>Comedouro quebra-cabeça</td><td>R$ 220</td><td>primatas, predadores, elefantes, animais grandes</td></tr>
+<tr><td>Rede de cordas</td><td>R$ 280</td><td>primatas e escaladores</td></tr>
+<tr><td>Poleiro com balanço</td><td>R$ 120</td><td>aves</td></tr>
+<tr><td>Boia flutuante (na água)</td><td>R$ 110</td><td>quem nada</td></tr>
+<tr><td><b>Túnel de troncos</b> (novo)</td><td>R$ 130</td><td>animais pequenos</td></tr>
+<tr><td><b>Bola gigante</b> (novo)</td><td>R$ 160</td><td>elefantes e animais grandes</td></tr>
+<tr><td><b>Picolé de frutas</b> (novo)</td><td>R$ 100</td><td>primatas e animais polares</td></tr>
+<tr><td><b>Saco de aromas</b> (novo)</td><td>R$ 120</td><td>felinos</td></tr>
+<tr><td><b>Escorregador aquático</b> (novo, etapa 2)</td><td>R$ 300</td><td>quem nada</td></tr>
+<tr><td><b>Espelho para aves</b> (novo)</td><td>R$ 90</td><td>aves</td></tr>
+<tr><td><b>Monte de folhas e sementes</b> (novo)</td><td>R$ 60</td><td>herbívoros e animais pequenos</td></tr>
+<tr><td><b>Orbe mágico</b> (novo, etapa 5)</td><td>R$ 800</td><td>animais fantásticos</td></tr>
+</table>
+<h3>Quarentena</h3>
+<p>“✅ Liberar da quarentena” devolve o animal ao recinto de origem. Se ele não existir mais ou não tiver espaço, o animal vai para o recinto onde está o grupo da mesma espécie; se não houver, para o recinto compatível com o melhor habitat. “🔀 Liberar em outro recinto” permite escolher o recinto à mão. O painel do animal mostra para onde ele volta.</p>
+<h3>Visual</h3>
+<ul>
+<li><b>Entrada:</b> o portal mostra “ENTRADA ▸” (verde) de um lado e “◂ SAÍDA” (vermelha) do outro, sem o nome do jogo.</li>
+<li><b>Quadrúpedes em 3D:</b> 10 anatomias esculpidas no Blender (felino, canídeo, cervídeo, equino, pesado, urso, pequeno, mustelídeo, camelo e girafa), com pernas de pata ou casco. Cada espécie mantém tamanho, pelagem, orelhas, olhos, focinho, cauda, juba, crina e chifres próprios. Fonte: <code>scripts/blender/animais.py</code> e <code>animais.blend</code>; dados em <code>js/animal_meshes.js</code>.</li>
+</ul>
+<h3>Celular e tablet (desde a 2.2)</h3>
+<p>Instale pelo navegador (Android: Chrome → Instalar; iPhone/iPad: Safari → Compartilhar → Adicionar à Tela de Início) e jogue sem internet.</p>
+<ul>
+<li><b>1 dedo:</b> desenha com a ferramenta escolhida ou move o mapa.</li>
+<li><b>2 dedos:</b> movem o mapa; a pinça dá zoom; girar os dedos gira a câmera 3D; arrastar os dois dedos para cima ou para baixo inclina.</li>
+<li><b>Botões à direita:</b> ✋ mover · ＋/－ zoom · ⤒/⤓ inclinar · 🗺️ mapa e câmeras.</li>
+<li><b>Desempenho:</b> a qualidade gráfica é automática (alta, média, baixa ou mínima), e a economia de bateria limita o jogo a 30 quadros por segundo.</li>
+</ul>
 
 <h2 id="visao">1. Visão geral</h2>
 <p><b>Faunópolis</b> é um jogo de simulação, construção e gestão de zoológico com visão superior (top-down) em 2D. O jogador começa com um terreno pequeno, R$ 60.000 e poucas espécies, e precisa planejar o espaço, construir e ampliar recintos, adquirir e cuidar dos animais, contratar funcionários, atrair visitantes, definir o preço do ingresso e equilibrar receitas e despesas — até transformar um pequeno zoológico em um parque de referência, com sete biomas e, por fim, criaturas fantásticas.</p>
@@ -97,8 +161,10 @@
 <tr><td>Ferramenta Caminho / Recinto / Demolir</td><td>Barra esquerda</td><td><kbd>C</kbd> / <kbd>R</kbd> / <kbd>B</kbd></td></tr>
 <tr><td>Alternar lentes</td><td>Botões acima do minimapa</td><td><kbd>L</kbd></td></tr>
 <tr><td>Salvamento rápido</td><td>Menu ☰ → Salvar</td><td><kbd>F5</kbd></td></tr>
+<tr><td><b>Desfazer a última ação</b> (2.3)</td><td>Botão ↶ no fim da barra de construção</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td></tr>
+<tr><td><b>Terreno por área</b> (2.3)</td><td>🏞️ Terreno e biomas → escolher o terreno → arrastar um retângulo (▭ Área) ou pintar (🖌️ Pincel)</td><td>—</td></tr>
 </table>
-<p>Telas sensíveis ao toque: arrastar com um dedo move a câmera, pinça com dois dedos faz zoom e toque simples equivale a um clique.</p>
+<p>Telas sensíveis ao toque: veja os controles completos em <a href="#novidades">Celular e tablet</a>. Resumo: 1 dedo desenha com a ferramenta ativa (ou move o mapa com a ferramenta Selecionar ou com ✋ ligado); 2 dedos movem; a pinça dá zoom; um toque equivale a um clique.</p>
 
 <h2 id="interface">4. Interface</h2>
 <p>A interface prioriza o mapa: os painéis só aparecem quando você seleciona algo ou abre um menu.</p>
