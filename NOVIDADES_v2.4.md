@@ -23,3 +23,19 @@ A versão 2.4 é uma versão de desempenho: todas as funções da 2.3 continuam.
 - Em ☰ Menu → Gráficos 3D, escolha **Mínima**.
 - A visão **2D** (botão 🗺️ → 2D) é a mais leve de todas.
 - Deixe a **🔋 Economia de bateria** ligada (30 quadros por segundo).
+
+## 2.4.1: visão 2D afastada sem travar
+No celular, a visão 2D travava com o zoom bem afastado (mapa inteiro na tela). O 3D já estava bom. O que mudou:
+- **Árvores, decoração, instalações e cercas pré-desenhadas no zoom afastado:** com o mapa inteiro na tela, esses itens são desenhados uma vez só, dentro dos pedaços já guardados do mapa. Um pedaço só é redesenhado quando algo é construído ou removido nele. Antes, os mais de mil itens eram redesenhados um a um a cada quadro.
+- **Sujeira dos recintos:** as manchas são desenhadas de uma vez só (antes, uma chamada por mancha). Bem de longe, viram um véu marrom leve.
+- **Lentes e mourões das cercas:** também desenhados de uma vez só.
+- **Visitantes de longe** viram pontinhos na cor da roupa.
+- **Sem travadas ao mudar o zoom:** no máximo 2 pedaços novos do mapa por quadro no celular (4 no computador). Enquanto isso, aparece a versão que já estava pronta.
+
+### Resultado medido (parque com 60 animais e mais de mil itens, celular simulado)
+| Zoom 2D | 2.4 | 2.4.1 |
+|---|---|---|
+| Normal (1,1×) | 14,7 ms por quadro | 2,0 ms |
+| Médio (0,6×) | 20,9 ms | 4,2 ms |
+| Mapa inteiro (0,22×) | 22–47 ms | 0,4–6 ms |
+| Mapa inteiro, à noite | 56 ms | 2,2 ms |

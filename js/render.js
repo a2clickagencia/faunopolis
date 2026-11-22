@@ -35,17 +35,26 @@ let chunkPix = 0;
 const chunkBudget = () => (FP.Mobile && FP.Mobile.touch ? 10e6 : 24e6);   // pixels guardados no total
 const TIERS = [.25, .5, 1, 2];
 function pickTier(sc){ for (const t of TIERS) if (t >= sc * .95) return t; return 2; }
-function chunkSig(G, cx, cy){
+function chunkSig(G, cx, cy, full){
   let h = 7;
-  const xs = cx * CH, xe = Math.min(FP.W, xs + CH), ye = Math.min(FP.H, (cy + 1) * CH);
-  for (let y = cy * CH; y < ye; y++){ let i = y * FP.W + xs; const e = y * FP.W + xe; for (; i < e; i++) h = (h * 31 + G.ground[i] * 4 + G.path[i] * 2 + G.road[i]) | 0; }
+  // v2.4.1: no modo "completo" (zoom bem afastado) o pedaço também guarda cercas e itens;
+  // a assinatura inclui recintos e objetos, com 2 tiles de margem (copas passam da borda)
+  const m = full ? 2 : 0;
+  const xs = Math.max(0, cx * CH - m), xe = Math.min(FP.W, cx * CH + CH + m), ys = Math.max(0, cy * CH - m), ye = Math.min(FP.H, (cy + 1) * CH + m);
+  for (let y = ys; y < ye; y++){ let i = y * FP.W + xs; const e = y * FP.W + xe; for (; i < e; i++){ h = (h * 31 + G.ground[i] * 4 + G.path[i] * 2 + G.road[i]) | 0; if (full) h = (h * 17 + G.obj[i] * 3 + G.enc[i]) | 0; } }
   return h;
 }
-function getChunk(G, cx, cy, tier){
-  const key = cx + ',' + cy + ',' + tier, sig = chunkSig(G, cx, cy);
+let chunkBuilds = 0;   // pedaços montados neste quadro (o resto espera o próximo, para não travar)
+function getChunk(G, cx, cy, tier, full){
+  const key = cx + ',' + cy + ',' + tier + (full ? 'f' : ''), sig = chunkSig(G, cx, cy, full);
   let c = chunkCache.get(key);
   if (c){ chunkCache.delete(key); chunkCache.set(key, c); if (c.sig === sig) return c.cv; }
-  else {
+  // v2.4.1: no máximo 4 pedaços novos por quadro (2 no celular); enquanto isso usa uma versão já pronta (outra escala)
+  if (chunkBuilds >= (FP.Mobile && FP.Mobile.touch ? 2 : 4)){
+    for (const t of TIERS) for (const f of [full ? 'f' : '', full ? '' : 'f']){ const o = chunkCache.get(cx + ',' + cy + ',' + t + f); if (o && o.sig === chunkSig(G, cx, cy, f === 'f')) return o.cv; }
+  }
+  chunkBuilds++;
+  if (!c){
     const px = Math.ceil(CH * T * tier), cv = document.createElement('canvas');
     cv.width = cv.height = px; c = {cv, px: px * px}; chunkPix += c.px; chunkCache.set(key, c);
   }
@@ -56,6 +65,21 @@ function getChunk(G, cx, cy, tier){
   gc.imageSmoothingEnabled = true;
   const x0 = cx * CH, y0 = cy * CH, x1 = Math.min(FP.W, x0 + CH) - 1, y1 = Math.min(FP.H, y0 + CH) - 1;
   drawGround(gc, G, x0, y0, x1, y1, 1 / tier);
+  if (full){
+    // cercas e itens (decoração, árvores, instalações) desenhados uma vez só no pedaço
+    const g0 = g; g = gc;
+    try {
+      drawFences(G, x0 - 1, y0 - 1, x1 + 1, y1 + 1);
+      const low = [], top = [];
+      for (const k in G.objects){
+        const o = G.objects[k];
+        if (o.x + o.w < x0 - 2 || o.x > x1 + 2 || o.y + o.h < y0 - 2 || o.y > y1 + 2) continue;
+        (o.kind === 'deco' && FP.DECOS[o.type].copa ? top : low).push(o);
+      }
+      low.sort((a, b) => a.y - b.y).forEach(o => drawObject(G, o));
+      top.sort((a, b) => a.y - b.y).forEach(o => drawObject(G, o));
+    } finally { g = g0; }
+  }
   // libera os pedaços usados há mais tempo quando passa do limite de memória
   while (chunkPix > chunkBudget() && chunkCache.size > 1){
     const [k, v] = chunkCache.entries().next().value;
@@ -158,9 +182,11 @@ R.draw = function(dt){
   // 1–3. chão (terreno, margens da água, estrada e caminhos): v7.2 — vem de pedaços
   // pré-desenhados de 16×16 tiles, refeitos só quando o chão daquele pedaço muda
   const tier = pickTier(z * dpr);
+  const far = z < .42;
+  chunkBuilds = 0;   // v2.4.1: zoom bem afastado: cercas e itens vêm prontos nos pedaços
   const cx0 = Math.floor(x0 / CH), cy0 = Math.floor(y0 / CH), cx1 = Math.floor(x1 / CH), cy1 = Math.floor(y1 / CH);
   for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++)
-    g.drawImage(getChunk(G, cx, cy, tier), cx * CH * T, cy * CH * T, CH * T + ov, CH * T + ov);
+    g.drawImage(getChunk(G, cx, cy, tier, far), cx * CH * T, cy * CH * T, CH * T + ov, CH * T + ov);
   // brilho animado da água (só quando dá para ver)
   if (z > .45){
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++){
@@ -189,22 +215,34 @@ R.draw = function(dt){
       const v = R.lensValue(e);
       lensCol = v === null ? 'rgba(120,120,120,.35)' : U.stateColor(v);
     }
-    e.tiles.forEach(i => {
-      const x = i % FP.W, y = (i / FP.W) | 0;
-      if (x < x0 || x > x1 || y < y0 || y > y1) return;
-      if (dirt > .15){
-        for (let k = 0; k < 3; k++) if (U.hash(x, y, k + 50) < dirt * .7){ g.fillStyle = 'rgba(92,64,30,.55)'; g.beginPath(); g.ellipse(x * T + 5 + U.hash(x, y, k) * 22, y * T + 5 + U.hash(y, x, k) * 22, 2.4, 1.6, 0, 0, 7); g.fill(); }
-      }
-      if (lensCol){ g.globalAlpha = .42; g.fillStyle = lensCol; g.fillRect(x * T, y * T, T + ov, T + ov); g.globalAlpha = 1; }
-    });
+    // v2.4.1: todas as manchas de sujeira do recinto num único preenchimento
+    if (dirt > .15 && z > .3){
+      g.beginPath();
+      e.tiles.forEach(i => {
+        const x = i % FP.W, y = (i / FP.W) | 0;
+        if (x < x0 || x > x1 || y < y0 || y > y1) return;
+        for (let k = 0; k < 3; k++) if (U.hash(x, y, k + 50) < dirt * .7){ const ex = x * T + 5 + U.hash(x, y, k) * 22, ey = y * T + 5 + U.hash(y, x, k) * 22; g.moveTo(ex + 2.4, ey); g.ellipse(ex, ey, 2.4, 1.6, 0, 0, 6.2832); }
+      });
+      g.fillStyle = 'rgba(92,64,30,.55)'; g.fill();
+    } else if (dirt > .15){
+      // bem afastado: um véu marrom no recinto em vez de centenas de manchas
+      g.fillStyle = `rgba(92,64,30,${(dirt * .3).toFixed(3)})`; g.beginPath();
+      e.tiles.forEach(i => { const x = i % FP.W, y = (i / FP.W) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) g.rect(x * T, y * T, T + ov, T + ov); });
+      g.fill();
+    }
+    if (lensCol){
+      g.globalAlpha = .42; g.fillStyle = lensCol; g.beginPath();
+      e.tiles.forEach(i => { const x = i % FP.W, y = (i / FP.W) | 0; if (x >= x0 && x <= x1 && y >= y0 && y <= y1) g.rect(x * T, y * T, T + ov, T + ov); });
+      g.fill(); g.globalAlpha = 1;
+    }
   });
 
-  // 5. cercas
-  drawFences(G, x0, y0, x1, y1);
+  // 5. cercas (no zoom afastado já estão nos pedaços)
+  if (!far) drawFences(G, x0, y0, x1, y1);
 
   // 6. objetos baixos (decoração sem copa e instalações), ordenados por y
   const vis = [], canopies = [];
-  Object.values(G.objects).forEach(o => {
+  if (!far) Object.values(G.objects).forEach(o => {
     if (o.x + o.w < x0 || o.x > x1 + 1 || o.y + o.h < y0 || o.y > y1 + 1) return;
     if (o.kind === 'deco' && FP.DECOS[o.type].copa) canopies.push(o); else vis.push(o);
   });
@@ -217,8 +255,17 @@ R.draw = function(dt){
   animals.forEach(a => drawAnimal(G, a));
 
   // 8. pessoas
-  G.visitors.forEach(v => { if (v.x >= x0 - 1 && v.x <= x1 + 2 && v.y >= y0 - 1 && v.y <= y1 + 2) drawPerson(v.x, v.y, v.h, v.shirt, v.skin, v.hair, v.kid, v.ft, false); });
-  G.staff.forEach(s => { if (s.x >= x0 - 1 && s.x <= x1 + 2 && s.y >= y0 - 1 && s.y <= y1 + 2) drawPerson(s.x, s.y, s.h, FP.STAFF[s.role].cor, '#e0ac85', '#2b1d14', false, s.ft || 0, true); });
+  if (far){
+    // v2.4.1: de longe, cada pessoa é um pontinho na cor da roupa (um preenchimento por cor)
+    const byCol = {};
+    const add = (x, y, c) => { if (x >= x0 - 1 && x <= x1 + 2 && y >= y0 - 1 && y <= y1 + 2) (byCol[c] = byCol[c] || []).push(x, y); };
+    G.visitors.forEach(v => add(v.x, v.y, v.shirt)); G.staff.forEach(s => add(s.x, s.y, FP.STAFF[s.role].cor));
+    const r = Math.max(3, 2.2 / z);
+    for (const c in byCol){ const a = byCol[c]; g.fillStyle = c; g.beginPath(); for (let k = 0; k < a.length; k += 2) g.rect(a[k] * T - r / 2, a[k + 1] * T - r / 2, r, r); g.fill(); }
+  } else {
+    G.visitors.forEach(v => { if (v.x >= x0 - 1 && v.x <= x1 + 2 && v.y >= y0 - 1 && v.y <= y1 + 2) drawPerson(v.x, v.y, v.h, v.shirt, v.skin, v.hair, v.kid, v.ft, false); });
+    G.staff.forEach(s => { if (s.x >= x0 - 1 && s.x <= x1 + 2 && s.y >= y0 - 1 && s.y <= y1 + 2) drawPerson(s.x, s.y, s.h, FP.STAFF[s.role].cor, '#e0ac85', '#2b1d14', false, s.ft || 0, true); });
+  }
 
   // 9. copas das árvores
   canopies.sort((a, b) => a.y - b.y);
@@ -401,8 +448,9 @@ function drawFences(G, x0, y0, x1, y1){
   path(); g.strokeStyle = '#a7774a'; g.lineWidth = 2; g.stroke();
   const posts = new Set();
   segs.forEach(s => { posts.add(s[0] + ',' + s[1]); posts.add(s[2] + ',' + s[3]); });
-  g.fillStyle = '#4a2f18';
-  posts.forEach(p => { const [x, y] = p.split(','); g.beginPath(); g.arc(x * T, y * T, 2.8, 0, 7); g.fill(); });
+  g.fillStyle = '#4a2f18'; g.beginPath();
+  posts.forEach(p => { const [x, y] = p.split(','); g.moveTo(x * T + 2.8, y * T); g.arc(x * T, y * T, 2.8, 0, 6.2832); });
+  g.fill();
 }
 
 function drawObject(G, o){

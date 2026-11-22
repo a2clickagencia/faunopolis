@@ -12,7 +12,7 @@
   <img src="../assets/brand/logo-negativo.svg" alt="Faunópolis">
   <h1>Manual Completo do Jogo</h1>
   <p>Jogabilidade, sistemas, fórmulas, física, sprites, assets, interface, balanceamento e arquitetura técnica de Faunópolis — o simulador de construção e gestão de zoológico em 2D e 3D, para computador, celular e tablet.</p>
-  <div class="meta">Versão do jogo 2.4 · Documento 2.4 · 22 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
+  <div class="meta">Versão do jogo 2.4.1 · Documento 2.4.1 · 22 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
 </header>
 <div class="layout">
 <nav class="toc">
@@ -56,6 +56,13 @@
 <main>
 
 <h2 id="novidades">Novidades das versões 2.3 e 2.4</h2>
+<h3>2.4.1: visão 2D afastada sem travar</h3>
+<ul>
+<li>Com o zoom bem afastado (mapa inteiro), árvores, decoração, instalações e cercas são pré-desenhadas nos pedaços guardados do mapa. Cada pedaço só é refeito quando algo muda nele.</li>
+<li>Sujeira dos recintos, lentes e mourões das cercas são desenhados de uma vez só. Bem de longe, a sujeira vira um véu leve e os visitantes, pontinhos na cor da roupa.</li>
+<li>No máximo 2 pedaços novos do mapa por quadro no celular (4 no computador), para não travar durante a pinça de zoom.</li>
+<li>Resultado medido (parque com 60 animais e mais de mil itens): mapa inteiro, de 22–47 ms para 0,4–6 ms por quadro; zoom normal, de 14,7 ms para 2 ms.</li>
+</ul>
 <h3>2.4: desempenho no celular e no tablet</h3>
 <ul>
 <li><b>Animais à distância:</b> longe da câmera, cada animal é desenhado como uma malha única e simplificada (cerca de 1.000 triângulos em vez de 3.800; 1 desenho em vez de 5), com as mesmas cores e manchas. De perto, e na câmera “Seguir animal”, volta o modelo completo, com pernas animadas.</li>
