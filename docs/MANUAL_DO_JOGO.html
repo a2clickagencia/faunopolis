@@ -12,13 +12,13 @@
   <img src="../assets/brand/logo-negativo.svg" alt="Faunópolis">
   <h1>Manual Completo do Jogo</h1>
   <p>Jogabilidade, sistemas, fórmulas, física, sprites, assets, interface, balanceamento e arquitetura técnica de Faunópolis — o simulador de construção e gestão de zoológico em 2D e 3D, para computador, celular e tablet.</p>
-  <div class="meta">Versão do jogo 2.3 · Documento 2.3 · 20 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
+  <div class="meta">Versão do jogo 2.4 · Documento 2.4 · 22 de novembro de 2026 · Baseado no GDD “visão, conceito e design do jogo” (v1.0)</div>
 </header>
 <div class="layout">
 <nav class="toc">
   <b>Sumário</b>
   <ol>
-    <li><a href="#novidades"><b>Novidades da versão 2.3</b></a></li>
+    <li><a href="#novidades"><b>Novidades das versões 2.3 e 2.4</b></a></li>
     <li><a href="#visao">Visão geral</a></li>
     <li><a href="#inicio">Primeiros passos</a></li>
     <li><a href="#controles">Controles</a></li>
@@ -55,7 +55,16 @@
 </nav>
 <main>
 
-<h2 id="novidades">Novidades da versão 2.3</h2>
+<h2 id="novidades">Novidades das versões 2.3 e 2.4</h2>
+<h3>2.4: desempenho no celular e no tablet</h3>
+<ul>
+<li><b>Animais à distância:</b> longe da câmera, cada animal é desenhado como uma malha única e simplificada (cerca de 1.000 triângulos em vez de 3.800; 1 desenho em vez de 5), com as mesmas cores e manchas. De perto, e na câmera “Seguir animal”, volta o modelo completo, com pernas animadas.</li>
+<li><b>Árvores e decoração à distância:</b> versões simplificadas com a câmera afastada; itens rasteiros pequenos (flores, capim, brinquedos) não são desenhados quando a câmera está bem longe.</li>
+<li><b>Distância de troca:</b> Alta 80 tiles (animais) e 110 (árvores) · Média 48/70 · Baixa 32/46 · Mínima 24/34.</li>
+<li><b>Desfazer no celular:</b> 12 ações guardadas (30 no computador), para economizar memória.</li>
+<li><b>Resultado medido</b> (celular simulado, 60 animais, qualidade baixa): 374 mil → 178 mil triângulos e 223 → 94 desenhos por quadro na vista normal; com a câmera afastada, 995 mil → 346 mil triângulos e 400 → 142 desenhos.</li>
+</ul>
+<h3>2.3</h3>
 <p>Resumo do que mudou desde a 2.1. A 2.2 levou o jogo para o celular e o tablet; a 2.3 deixa a construção mais rápida e corrige problemas relatados pelos jogadores.</p>
 <h3>Construção</h3>
 <ul>

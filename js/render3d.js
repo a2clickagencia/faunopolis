@@ -46,10 +46,10 @@ R3._dbg = () => ({scene, camera, renderer, sun, skyUni, terrainGeo});
 /* sub: subdivisões do terreno · env: reflexos do céu (PMREM) · view: alcance da visão
    detail: detalhe dos animais esculpidos · people: pessoas desenhadas · halos: brilhos noturnos */
 const QUAL = {
-  alta:   {nome: 'Alta',   pr: 1.75, shadows: true,  shadow: 4096, soft: true,  grass: 1,   aa: true,  sub: 2, env: true,  view: 1,   detail: 1,   people: 1700, halos: 400},
-  media:  {nome: 'Média',  pr: 1.25, shadows: true,  shadow: 2048, soft: false, grass: .4,  aa: true,  sub: 2, env: true,  view: .8,  detail: .8,  people: 600,  halos: 120},
-  baixa:  {nome: 'Baixa',  pr: 1,    shadows: false, shadow: 1024, soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .55, detail: .5,  people: 250,  halos: 0},
-  minima: {nome: 'Mínima', pr: .75,  shadows: false, shadow: 512,  soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .4,  detail: .42, people: 120,  halos: 0}
+  alta:   {nome: 'Alta',   pr: 1.75, shadows: true,  shadow: 4096, soft: true,  grass: 1,   aa: true,  sub: 2, env: true,  view: 1,   detail: 1,   people: 1700, halos: 400, lodA: 80, lodT: 110},
+  media:  {nome: 'Média',  pr: 1.25, shadows: true,  shadow: 2048, soft: false, grass: .4,  aa: true,  sub: 2, env: true,  view: .8,  detail: .8,  people: 600,  halos: 120, lodA: 48, lodT: 70},
+  baixa:  {nome: 'Baixa',  pr: 1,    shadows: false, shadow: 1024, soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .55, detail: .5,  people: 250,  halos: 0, lodA: 32, lodT: 46},
+  minima: {nome: 'Mínima', pr: .75,  shadows: false, shadow: 512,  soft: false, grass: 0,   aa: false, sub: 1, env: false, view: .4,  detail: .42, people: 120,  halos: 0, lodA: 24, lodT: 34}
 };
 R3.QUAL = QUAL;
 R3.autoQuality = function(){
@@ -762,6 +762,7 @@ function rebuildDecos(G){
   Object.keys(groups).forEach(k => {
     const [type, vv] = k.split('|'); const list = groups[k], d = FP.DECOS[type];
     const im = new THREE.InstancedMesh(M3.decoGeo(type, +vv), matStd, list.length);
+    im.userData.hi = im.geometry; im.userData.dk = [type, +vv]; im.userData.lo = null; im.userData.isLo = false;
     im.castShadow = !(type === 'flores' || type === 'aguape' || type === 'boia'); im.receiveShadow = true;
     list.forEach((o, i) => {
       const [ox, oz] = d.naBorda ? FP.World.borderOffset(G, o.x, o.y) : [0, 0];
@@ -1066,6 +1067,16 @@ function updateAnimals(G, dt){
     o.g.position.set(o.x, y, o.y);
     o.g.rotation.y = o.hr + (playing ? Math.sin((a.playT || 0) * 3) * .5 : 0);
     o.g.scale.set(sc, sc, sc);
+    // v2.4: longe da câmera, o animal vira uma malha única simplificada (mesmas cores e manchas)
+    const lodD = Q().lodA;
+    if (R3.mode !== 'seguir' && camera.position.distanceToSquared(o.g.position) > lodD * lodD){
+      if (!o.lodMesh){ o.lodMesh = new THREE.Mesh(M3.animalLod(o.model), matAnimal); o.lodMesh.castShadow = true; o.g.add(o.lodMesh); }
+      o.lodMesh.visible = true; o.root.visible = false;
+      o.lodMesh.position.y = sleeping && !sp.voa ? -o.model.legLen * .6 : 0;
+      return;
+    }
+    if (o.lodMesh) o.lodMesh.visible = false;
+    o.root.visible = true;
     // pose
     const lie = sleeping && !sp.voa;
     o.root.position.y = lie ? -o.model.legLen * .78 : 0;
@@ -1243,6 +1254,17 @@ R3.draw = function(dt){
   scene.fog.near = (R3.mode === 'visitante' ? 30 : C.dist * 2 + 25) * vq; scene.fog.far = (R3.mode === 'visitante' ? 160 : C.dist * 7 + 160) * vq;
   if (vq < 1){ camera.far = scene.fog.far + 30; camera.updateProjectionMatrix(); }
   updateView();
+  // v2.4: troca de detalhe da decoração pela distância da câmera
+  const farT = R3.mode !== 'visitante' && C.dist > Q().lodT;
+  const farS = farT && C.dist > Q().lodT * 1.25;   // bem longe: itens rasteiros (flores, capim, brinquedos) nem aparecem
+  for (const im of decoMeshes){
+    const u = im.userData;
+    if (u.small === undefined){ const d = FP.DECOS[u.dk[0]]; u.small = !d.copa && !d.bloqueia; }
+    im.visible = !(farS && u.small);
+    if (u.isLo === farT) continue;
+    if (farT && !u.lo) u.lo = M3.decoLod(u.dk[0], u.dk[1]);
+    im.geometry = farT ? u.lo : u.hi; u.isLo = farT;
+  }
   skyMesh.position.copy(camera.position);
   FP.Cam.x = C.syncX = C.tx * T; FP.Cam.y = C.syncY = C.ty * T;
   // água em movimento

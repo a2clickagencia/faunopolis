@@ -24,4 +24,4 @@ npm run deploy:web   # monta dist-web/ e publica o site no Cloudflare
 - **Nova versão do instalador:** atualize `version` no `package.json` e depois rode `git tag v7.2.0 && git push --tags`. O GitHub Actions monta o `.exe` e cria a Release sozinho.
 - **Site automático a cada push:** cadastre os segredos `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` no repositório. Sem eles, publique o site manualmente com `npm run deploy:web`.
 
-Veja também [`LEIA-ME.md`](LEIA-ME.md), [`NOVIDADES_v2.3.md`](NOVIDADES_v2.3.md), [`NOVIDADES_v7.2.md`](NOVIDADES_v7.2.md), [`NOVIDADES_v7.1.md`](NOVIDADES_v7.1.md) e [`PUBLICACAO.md`](PUBLICACAO.md).
+Veja também [`LEIA-ME.md`](LEIA-ME.md), [`NOVIDADES_v2.4.md`](NOVIDADES_v2.4.md), [`NOVIDADES_v2.3.md`](NOVIDADES_v2.3.md), [`NOVIDADES_v7.2.md`](NOVIDADES_v7.2.md), [`NOVIDADES_v7.1.md`](NOVIDADES_v7.1.md) e [`PUBLICACAO.md`](PUBLICACAO.md).

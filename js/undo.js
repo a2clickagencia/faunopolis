@@ -9,7 +9,8 @@
 (function(){
 const UN = FP.Undo = {};
 const TYPED = ['ground', 'owned', 'path', 'road', 'enc', 'obj', 'litter'];
-const MAX = 30;
+// celular/tablet: menos fotos guardadas para poupar memória (cada uma pode ter centenas de KB)
+const MAX = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 12 : 30;
 let stack = [], stackG = null;
 
 /* tira a foto do estado atual (não guarda ainda) */

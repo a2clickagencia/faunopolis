@@ -1107,6 +1107,53 @@ M3.animalModel = function(spId, sexKey){
   modelCache.set(key, out);
   return out;
 };
+/* v2.4: SIMPLIFICAÇÃO (LOD) por agrupamento de vértices numa grade.
+   Mantém forma e cores (listras, manchas) com bem menos triângulos; usada à distância. */
+M3.simplify = function(geo, n){
+  const P = geo.attributes.position, C = geo.attributes.color;
+  geo.computeBoundingBox(); const bb = geo.boundingBox;
+  const size = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) || 1, h = size / n;
+  const map = new Map(), vmap = new Int32Array(P.count), acc = [];
+  for (let k = 0; k < P.count; k++){
+    const x = P.getX(k), y = P.getY(k), z = P.getZ(k);
+    const key = Math.floor((x - bb.min.x) / h) + Math.floor((y - bb.min.y) / h) * 1024 + Math.floor((z - bb.min.z) / h) * 1048576;
+    let c = map.get(key);
+    if (c === undefined){ c = acc.length / 7; map.set(key, c); acc.push(0, 0, 0, 0, 0, 0, 0); }
+    const o = c * 7; acc[o] += x; acc[o + 1] += y; acc[o + 2] += z;
+    if (C){ acc[o + 3] += C.getX(k); acc[o + 4] += C.getY(k); acc[o + 5] += C.getZ(k); }
+    acc[o + 6]++; vmap[k] = c;
+  }
+  const nv = acc.length / 7, pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3);
+  for (let c = 0; c < nv; c++){ const o = c * 7, q = acc[o + 6]; pos[c * 3] = acc[o] / q; pos[c * 3 + 1] = acc[o + 1] / q; pos[c * 3 + 2] = acc[o + 2] / q; col[c * 3] = acc[o + 3] / q; col[c * 3 + 1] = acc[o + 4] / q; col[c * 3 + 2] = acc[o + 5] / q; }
+  const I = geo.index ? geo.index.array : null, nt = I ? I.length : P.count, idx = [], seen = new Set();
+  for (let t = 0; t < nt; t += 3){
+    const a = vmap[I ? I[t] : t], b = vmap[I ? I[t + 1] : t + 1], c = vmap[I ? I[t + 2] : t + 2];
+    if (a === b || b === c || a === c) continue;
+    const k = a < b ? (a < c ? a + ',' + (b < c ? b + ',' + c : c + ',' + b) : c + ',' + a + ',' + b) : (b < c ? b + ',' + (a < c ? a + ',' + c : c + ',' + a) : c + ',' + b + ',' + a);
+    if (seen.has(k)) continue; seen.add(k);
+    idx.push(a, b, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (C) g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(nv > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+  g.computeVertexNormals(); g.computeBoundingSphere();
+  return g;
+};
+/* animal inteiro (corpo + pernas em repouso) numa malha só e simplificada: 1 desenho em vez de 5 */
+M3.animalLod = function(m){
+  if (m.lod) return m.lod;
+  const mb = new MB(); mb.add(m.body);
+  m.limbs.forEach(l => mb.add(l.geo, {x: l.x, y: l.y, z: l.z}));
+  m.lod = M3.simplify(mb.geo(), 26);
+  return m.lod;
+};
+const decoLodCache = new Map();
+M3.decoLod = function(type, variant){
+  const k = type + '_' + variant;
+  if (!decoLodCache.has(k)) decoLodCache.set(k, M3.simplify(M3.decoGeo(type, variant), 8));
+  return decoLodCache.get(k);
+};
 /* modelo estático (estátua): corpo + membros em repouso */
 M3.statueGeo = function(spId){
   if (!FP.SPECIES[spId]) return null;
