@@ -215,6 +215,8 @@ V.update = function(dtGame){
   const dtH = dtGame / FP.HOUR_SEC;
   const t = now();
   rebuildIndex();
+  // v2.5: limite de decisões (buscas de caminho) por quadro — espalha o trabalho e evita picos
+  let budget = FP.Mobile && FP.Mobile.touch ? 16 : 48;
   for (const v of G.visitors){
     if (v.bubble){ v.bubble.t -= dtGame / Math.max(1, G.speed); if (v.bubble.t <= 0) v.bubble = null; }
     // necessidades
@@ -257,6 +259,7 @@ V.update = function(dtGame){
       continue;
     }
     if (v.state === 'leaving'){ v.state = 'out'; continue; }
+    if (budget-- <= 0) continue;
     decide(v);
   }
   // remoção e registro da satisfação

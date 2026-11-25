@@ -5,11 +5,24 @@ const SV = FP.Save = {};
 const KEY = 'faunopolis_save_';
 const TYPED = ['ground', 'owned', 'path', 'road', 'enc', 'obj', 'litter'];
 
+/* v2.5: mapas gravados em base64 (bytes crus) em vez de listas de números —
+   o salvamento fica ~4x menor e muito mais rápido (sem travada no celular). */
+function b64enc(ta){
+  const u8 = new Uint8Array(ta.buffer, ta.byteOffset, ta.byteLength);
+  let s = '';
+  for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function b64dec(str, C){
+  const bin = atob(str), u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new C(u8.buffer);
+}
 SV.serialize = function(){
   const G = FP.G;
   const o = {};
   Object.keys(G).forEach(k => {
-    if (TYPED.includes(k)) o[k] = {t: G[k].constructor.name, d: Array.from(G[k])};
+    if (TYPED.includes(k)) o[k] = {t: G[k].constructor.name, b: b64enc(G[k])};
     else if (k === 'reach' || k === 'pathBeauty') return;
     else o[k] = G[k];
   });
@@ -22,7 +35,7 @@ SV.deserialize = function(str){
   const o = JSON.parse(str);
   if (!o || !o.ground) throw new Error('Arquivo inválido');
   const ctors = {Uint8Array, Int16Array, Int32Array};
-  TYPED.forEach(k => { o[k] = new (ctors[o[k].t] || Uint8Array)(o[k].d); });
+  TYPED.forEach(k => { const C = ctors[o[k].t] || Uint8Array; o[k] = o[k].b !== undefined ? b64dec(o[k].b, C) : new C(o[k].d); });
   // v2.0: jogos da v1 (mapa 72×56) são convertidos para o mapa ampliado
   const migrated = FP.World.migrateV1(o);
   const cam = o.cam; delete o.cam;
@@ -30,7 +43,11 @@ SV.deserialize = function(str){
   o.staff.forEach(s => { s.path = []; s.tile = -1; s.until = 0; });
   o.animals.forEach(a => { a.notified = a.notified || {}; });
   FP.G = o;
-  Object.values(o.enclosures).forEach(e => { e.dirty = true; e.stats = null; if (migrated) FP.World.recomputeEnclosure(o, e); });
+  Object.values(o.enclosures).forEach(e => { e.dirty = true; e.stats = null; });
+  // v2.5: recupera recintos "perdidos" (estouro de id) e devolve lotes comprados fora do zoo
+  const fix = FP.World.repairSave(o);
+  if (fix.encFixed) setTimeout(() => FP.UI.toast(`🔧 Recintos recuperados: ${fix.encFixed} tiles voltaram aos seus recintos (agora aparecem para visitantes e no controle biológico).`, 'good'), 900);
+  if (fix.lots) setTimeout(() => FP.UI.toast(`🔧 ${fix.lots} lote(s) depois da entrada ficavam fora do zoológico e foram devolvidos (+${FP.U.money(fix.landRefund)}).`, 'info'), 1400);
   if (migrated) setTimeout(() => FP.UI.toast('Jogo da v1 convertido para o mapa ampliado: seu zoológico está no centro-sul do mapa.', 'info'), 800);
   FP.World.refreshNetwork(o);
   FP.Visitors.invalidate();

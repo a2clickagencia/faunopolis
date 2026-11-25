@@ -273,10 +273,13 @@ R.draw = function(dt){
 
   // 10. lotes não adquiridos
   const ch = FP.CHUNK;
-  for (let cy = 0; cy * ch < FP.H; cy++) for (let cx = 0; cx * ch < FP.W; cx++){
+  // v2.5: só os lotes visíveis e num único preenchimento (antes: ~300 retângulos por quadro)
+  g.fillStyle = 'rgba(20,30,25,.38)'; g.beginPath();
+  for (let cy = Math.floor(y0 / ch); cy <= Math.floor(y1 / ch); cy++) for (let cx = Math.floor(x0 / ch); cx <= Math.floor(x1 / ch); cx++){
     if (FP.World.chunkOwned(G, cx, cy)) continue;
-    g.fillStyle = 'rgba(20,30,25,.38)'; g.fillRect(cx * ch * T, cy * ch * T, ch * T, ch * T);
+    g.rect(cx * ch * T, cy * ch * T, ch * T, ch * T);
   }
+  g.fill();
   if (FP.Input.tool === 'land'){
     const price = FP.World.chunkPrice(G);
     for (let cy = 0; cy * ch < FP.H; cy++) for (let cx = 0; cx * ch < FP.W; cx++){

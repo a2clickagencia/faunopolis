@@ -479,14 +479,19 @@ function showPanel(title, renderFn, sel, key){
     const p = $('#panel');
     const body = p.querySelector('.p-body');
     const st = body.scrollTop;
-    p.querySelector('.p-title').innerHTML = typeof title === 'function' ? title() : title;
-    body.innerHTML = renderFn();
+    const t = typeof title === 'function' ? title() : title, html = renderFn();
+    // v2.5: só redesenha o painel quando o conteúdo mudou (no celular a troca constante
+    // travava a rolagem e "engolia" toques)
+    if (body._fpHtml === html && body._fpTitle === t && body.childElementCount) return;
+    body._fpHtml = html; body._fpTitle = t;
+    p.querySelector('.p-title').innerHTML = t;
+    body.innerHTML = html;
     body.scrollTop = st;
     bindPanel(body);
   };
   $('#panel').classList.remove('hidden');
   if (document.body.classList.contains('phone')){ $('#flyout').classList.add('hidden'); document.body.classList.remove('showmap'); }
-  $('#panel .p-body').scrollTop = 0;
+  $('#panel .p-body').scrollTop = 0; $('#panel .p-body')._fpHtml = null;
   panelRender();
   document.querySelectorAll('#mgmtbar button').forEach(b => b.classList.toggle('on', b.dataset.panel === key));
 }
@@ -495,8 +500,17 @@ UI.refreshPanel = function(){
   const p = $('#panel');
   if (p.contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (p.matches(':hover') && UI._noLiveWhileHover) return;
+  if (performance.now() < panelTouchUntil) return; // dedo rolando o painel: espera soltar
   panelRender();
 };
+let panelTouchUntil = 0;
+(() => {
+  const p = document.getElementById('panel'); if (!p) return;
+  const hold = () => { panelTouchUntil = performance.now() + 1500; };
+  p.addEventListener('touchstart', hold, {passive: true});
+  p.addEventListener('touchmove', hold, {passive: true});
+  p.addEventListener('scroll', hold, {passive: true, capture: true});
+})();
 $('#panel .p-close') && ($('#panel .p-close').onclick = UI.closePanels);
 
 UI.openPanel = function(key){

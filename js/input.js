@@ -333,7 +333,11 @@ function toolUp(){
     if (v.steal) FP.UI.toast(`${v.steal} tiles foram redesignados de outro recinto para ${e.name}.`, 'info');
     I.setTool('select');
     FP.UI.openEnclosure(e.id);
-    if (!e.viewTiles.length) FP.UI.toast('Dica: construa um caminho encostado no recinto para que os visitantes possam ver os animais.', 'info');
+    if (!e.viewTiles.length){
+      // v2.5: diferencia "sem caminho encostado" de "caminho encostado, mas sem ligação com a entrada"
+      const touching = e.tiles.some(i => { const x = U.ix(i), y = U.iy(i); return FP.World.N8.some(([dx, dy]) => U.inMap(x + dx, y + dy) && G.path[U.idx(x + dx, y + dy)]); });
+      FP.UI.toast(touching ? 'Dica: o caminho encostado neste recinto não está ligado à entrada. Conecte-o aos outros caminhos.' : 'Dica: construa um caminho encostado no recinto para que os visitantes possam ver os animais.', 'info');
+    }
   } else if (I.tool === 'expand'){
     const e = G.enclosures[I.toolArg]; if (!e){ I.setTool('select'); return; }
     const v = FP.World.validateEnclosureRect(G, tiles, e);

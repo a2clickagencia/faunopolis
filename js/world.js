@@ -22,7 +22,7 @@ W.newGame = function(mode, parkName){
     money: mode === 'livre' ? 500000 : 60000,
     ticket: 15, rep: 15, stage: mode === 'livre' ? 5 : 1,
     ground: new Uint8Array(n), owned: new Uint8Array(n), path: new Uint8Array(n),
-    road: new Uint8Array(n), enc: new Int16Array(n).fill(-1), obj: new Int32Array(n).fill(-1),
+    road: new Uint8Array(n), enc: new Int32Array(n).fill(-1), obj: new Int32Array(n).fill(-1),
     litter: new Uint8Array(n),
     enclosures: {}, objects: {}, animals: [], visitors: [], staff: [],
     food: {feno:150, frutas:60, sementes:60, insetos:40, carne:0, peixe:0, essencia:0},
@@ -124,7 +124,7 @@ W.migrateV1 = function(o){
   if (ow === FP.W && oh === FP.H) return false;
   const ox = FP.OX, oy = FP.H - oh, n = FP.W * FP.H;
   const t = {ground: new Uint8Array(n), owned: new Uint8Array(n), path: new Uint8Array(n), road: new Uint8Array(n),
-             enc: new Int16Array(n).fill(-1), obj: new Int32Array(n).fill(-1), litter: new Uint8Array(n), objects: {}, nextId: o.nextId, seed: o.seed || 1};
+             enc: new Int32Array(n).fill(-1), obj: new Int32Array(n).fill(-1), litter: new Uint8Array(n), objects: {}, nextId: o.nextId, seed: o.seed || 1};
   generateTerrain(t);
   // remove a vegetação gerada onde o mapa antigo será colado
   Object.values(t.objects).forEach(ob => { if (ob.x >= ox && ob.x < ox + ow && ob.y >= oy && ob.y < oy + oh) W.removeObject(t, ob.id); });
@@ -147,6 +147,47 @@ W.migrateV1 = function(o){
   return true;
 };
 
+/* ---------- v2.5: reparos de jogos salvos ----------
+   1) Até a v2.4 o mapa de recintos usava inteiros de 16 bits, mas o id do recinto vem do
+      mesmo contador dos objetos (árvores, bancos…). Passando de 32767 o id "estourava":
+      o recinto novo ficava com 0 tiles, sem caminho de visitação e fora do controle
+      biológico. Aqui o mapa vira 32 bits e os ids estourados são recuperados.
+   2) Lotes comprados depois da entrada (fora do zoo) e vazios são devolvidos com reembolso. */
+W.repairSave = function(G){
+  const out = {encFixed: 0, landRefund: 0, lots: 0};
+  if (!(G.enc instanceof Int32Array)){
+    const old = G.enc, enc = new Int32Array(old.length).fill(-1);
+    const wrap = {};
+    Object.keys(G.enclosures).forEach(k => { const id = +k; wrap[(id << 16) >> 16] = id; });
+    for (let i = 0; i < old.length; i++){
+      const v = old[i]; if (v === -1) continue;
+      if (G.enclosures[v]) enc[i] = v;
+      else if (wrap[v] !== undefined){ enc[i] = wrap[v]; out.encFixed++; }
+    }
+    G.enc = enc;
+  }
+  Object.values(G.enclosures).forEach(e => {
+    W.recomputeEnclosure(G, e);
+    if (!e.tiles.length && !G.animals.some(a => a.enc === e.id)) delete G.enclosures[e.id];
+  });
+  // lotes fora do zoológico (depois da entrada) que estão vazios
+  const maxY = W.zooMaxY(G);
+  for (let cy = 0; cy * FP.CHUNK < FP.H; cy++) for (let cx = 0; cx * FP.CHUNK < FP.W; cx++){
+    if (cy * FP.CHUNK <= maxY || !W.chunkOwned(G, cx, cy)) continue;
+    let used = false;
+    for (let y = cy * FP.CHUNK; y < (cy + 1) * FP.CHUNK && !used; y++) for (let x = cx * FP.CHUNK; x < (cx + 1) * FP.CHUNK; x++){
+      if (!U.inMap(x, y)) continue; const i = U.idx(x, y);
+      const ob = G.obj[i] >= 0 ? G.objects[G.obj[i]] : null;
+      if (G.enc[i] >= 0 || G.path[i] || (ob && ob.kind === 'building')){ used = true; break; }
+    }
+    if (used) continue;
+    for (let y = cy * FP.CHUNK; y < (cy + 1) * FP.CHUNK; y++) for (let x = cx * FP.CHUNK; x < (cx + 1) * FP.CHUNK; x++) if (U.inMap(x, y)) G.owned[U.idx(x, y)] = 0;
+    out.lots++; out.landRefund += 6000;
+  }
+  if (out.landRefund) G.money += out.landRefund;
+  return out;
+};
+
 /* ---------- Consultas de tiles ---------- */
 W.isOwned = (G, i) => G.owned[i] === 1;
 W.chunkOf = (x, y) => [Math.floor(x / FP.CHUNK), Math.floor(y / FP.CHUNK)];
@@ -154,10 +195,16 @@ W.chunkOwned = (G, cx, cy) => {
   const x = cx * FP.CHUNK, y = cy * FP.CHUNK;
   return U.inMap(x, y) && G.owned[U.idx(x, y)] === 1;
 };
+/* v2.5: o zoológico termina na linha da entrada — tudo ao sul dela é "lado de fora"
+   (estrada de acesso e avenida). Não se compra nem se constrói ali. */
+W.zooMaxY = G => U.iy(G.gate) + 2;           // última linha de tiles da bilheteria
+W.outside = (G, i) => U.iy(i) > W.zooMaxY(G);
+W.inZoo = (G, i) => G.owned[i] === 1 && U.iy(i) <= W.zooMaxY(G);
 W.chunkBuyable = (G, cx, cy) => {
   if (cx < 0 || cy < 0 || cx * FP.CHUNK >= FP.W || cy * FP.CHUNK >= FP.H) return false;
   if (W.chunkOwned(G, cx, cy)) return false;
   if ((cy + 1) * FP.CHUNK > W.AVENUE_Y) return false; // última faixa: avenida
+  if (cy * FP.CHUNK > W.zooMaxY(G)) return false;     // v2.5: lotes depois da entrada ficam fora do zoo
   return N4.some(([dx, dy]) => W.chunkOwned(G, cx + dx, cy + dy));
 };
 W.ownedChunks = G => { let n = 0; for (let cy = 0; cy * FP.CHUNK < FP.H; cy++) for (let cx = 0; cx * FP.CHUNK < FP.W; cx++) if (W.chunkOwned(G, cx, cy)) n++; return n; };
@@ -173,7 +220,7 @@ W.buyChunk = function(G, cx, cy){
 };
 
 /* livre para construir (sem caminho, objeto, recinto, estrada) */
-W.tileFree = (G, i) => G.owned[i] && !G.road[i] && !G.path[i] && G.enc[i] < 0 && G.obj[i] < 0;
+W.tileFree = (G, i) => W.inZoo(G, i) && !G.road[i] && !G.path[i] && G.enc[i] < 0 && G.obj[i] < 0;
 
 /* ---------- Objetos (decoração e instalações) ---------- */
 W.objDef = o => o.kind === 'deco' ? FP.DECOS[o.type] : FP.BUILDINGS[o.type];
@@ -184,6 +231,7 @@ W.canPlaceObject = function(G, kind, type, x, y){
     if (!U.inMap(xx, yy)) return {ok:false, msg:'Fora do mapa.'};
     const i = U.idx(xx, yy);
     if (!G.owned[i]) return {ok:false, msg:'Terreno não adquirido.'};
+    if (W.outside(G, i)) return {ok:false, msg:'Esta área fica fora do zoológico (depois da entrada).'};
     if (G.road[i]) return {ok:false, msg:'Não é possível construir na estrada.'};
     // v2.0: postes de luz e placas podem ficar na borda do caminho, sem bloquear a passagem
     // v2.3: banco, lixeira e ponto de informação também podem ficar no próprio caminho
@@ -219,12 +267,12 @@ W.removeObject = function(G, id){
 };
 
 /* ---------- Caminhos ---------- */
-W.canPath = (G, i) => G.owned[i] && !G.road[i] && !G.path[i] && G.enc[i] < 0 && G.obj[i] < 0 && G.ground[i] !== FP.T.agua;
+W.canPath = (G, i) => W.inZoo(G, i) && !G.road[i] && !G.path[i] && G.enc[i] < 0 && G.obj[i] < 0 && G.ground[i] !== FP.T.agua;
 W.PATH_COST = 12;
 
 /* ---------- Terreno (pintura de bioma) ---------- */
 W.canPaint = (G, i, tid) => {
-  if (!G.owned[i] || G.road[i] || G.path[i]) return false;
+  if (!W.inZoo(G, i) || G.road[i] || G.path[i]) return false;
   if (G.ground[i] === tid) return false;
   const o = G.obj[i];
   if (o >= 0){
@@ -247,7 +295,7 @@ W.rectTiles = (x0, y0, x1, y1) => {
    redesignado — assim como no Urbis uma zona residencial pode virar comercial sem demolir.
    Os tiles mudam de dono; o recinto doador encolhe (ou some, se ficar vazio e sem animais). */
 function encTileOk(G, i, encId){
-  if (!G.owned[i] || G.road[i] || G.path[i]) return false;
+  if (!W.inZoo(G, i) || G.road[i] || G.path[i]) return false;
   const o = G.obj[i];
   if (o >= 0){ const ob = G.objects[o]; if (ob.kind === 'building') return false; if (FP.DECOS[ob.type].foraRecinto) return false; }
   return true;
@@ -657,23 +705,30 @@ W.computeBeauty = function(G){
 };
 
 /* BFS na rede de caminhos. goal(i) -> true; retorna lista de tiles (sem o inicial) */
+/* v2.5: buffers reaproveitados entre as buscas (antes cada busca criava um vetor do tamanho do
+   mapa inteiro — com centenas de visitantes isso gerava coleta de lixo e travadas no celular) */
+let bfsPrev = null, bfsMark = null, bfsQ = null, bfsStamp = 0;
 W.bfs = function(G, start, goal, maxN){
   if (goal(start)) return [];
-  const prev = new Int32Array(G.path.length).fill(-1);
-  prev[start] = start;
-  const q = [start]; let h = 0, found = -1;
+  const n = G.path.length;
+  if (!bfsPrev || bfsPrev.length !== n){ bfsPrev = new Int32Array(n); bfsMark = new Uint32Array(n); bfsQ = new Int32Array(n); bfsStamp = 0; }
+  if (++bfsStamp > 0xFFFFFFF0){ bfsMark.fill(0); bfsStamp = 1; }
+  const st = bfsStamp, prev = bfsPrev, mark = bfsMark, q = bfsQ, path = G.path, MW = FP.W, MH = FP.H;
+  prev[start] = start; mark[start] = st;
+  q[0] = start; let h = 0, t = 1, found = -1;
   const lim = maxN || 1e9;
-  while (h < q.length && h < lim){
-    const i = q[h++], x = U.ix(i), y = U.iy(i);
+  while (h < t && h < lim){
+    const i = q[h++], x = i % MW, y = (i / MW) | 0;
     for (let k = 0; k < 4; k++){
       const nx = x + N4[k][0], ny = y + N4[k][1];
-      if (nx < 0 || ny < 0 || nx >= FP.W || ny >= FP.H) continue;
-      const j = ny * FP.W + nx;
-      if (!G.path[j] || prev[j] !== -1) continue;
-      prev[j] = i;
-      if (goal(j)){ found = j; h = q.length; break; }
-      q.push(j);
+      if (nx < 0 || ny < 0 || nx >= MW || ny >= MH) continue;
+      const j = ny * MW + nx;
+      if (!path[j] || mark[j] === st) continue;
+      mark[j] = st; prev[j] = i;
+      if (goal(j)){ found = j; break; }
+      q[t++] = j;
     }
+    if (found >= 0) break;
   }
   if (found < 0) return null;
   const out = []; let c = found;
