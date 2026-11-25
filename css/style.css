@@ -280,3 +280,15 @@ body.mode3d #game{background:transparent}
 #toolhint{flex-wrap:wrap}
 #buildbar button[data-cat="undo"]{font-size:24px;font-weight:700;border-top:1px solid var(--ui-line);border-radius:0 0 11px 11px}
 #buildbar button:disabled{opacity:.35;cursor:not-allowed}
+/* v2.5.1: ações em grupo */
+.bulk-open{margin:2px 0 8px;width:100%}
+.bulk-quick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.bulk-list{display:flex;flex-direction:column;gap:4px;max-height:42vh;overflow:auto;-webkit-overflow-scrolling:touch;padding-right:4px}
+.bulk-row{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:12px;background:rgba(255,255,255,.04);cursor:pointer;border:1px solid transparent}
+.bulk-row.on{background:rgba(242,179,61,.14);border-color:rgba(242,179,61,.5)}
+.bulk-row input{width:20px;height:20px;flex:none;accent-color:#F2B33D}
+.bulk-row img{width:28px;height:28px;flex:none}
+.bulk-row small{color:#a9bbb4}
+.bulk-move{display:flex;gap:8px;align-items:center;margin:8px 0}
+.bulk-move select{flex:1;min-width:0;padding:8px;border-radius:10px;background:#142227;color:#eef;border:1px solid var(--ui-line)}
+.btn[disabled]{opacity:.45;pointer-events:none}

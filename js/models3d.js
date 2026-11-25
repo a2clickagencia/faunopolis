@@ -830,17 +830,43 @@ function buildRept(v){
   });
   return {sdf: S, limbs, legLen: cy - bh * .1, low: true};
 }
+/* v2.5.1: cobra com corpo CILÍNDRICO e liso — um tubo de verdade (não mais uma corrente de
+   esferas extraída numa grade grossa, que deixava o corpo cheio de "ondinhas" e enrolado como
+   uma rosca). Ela fica deitada no chão numa curva em "S" suave, como na vista 2D. */
 function buildSnake(v){
-  const S = new SDF(), L = v.L, Wd = v.Wd;
-  const skin = (x, y, z) => { const t = Math.sin(x * .9 + z * .9) * Math.sin(x * .9 - z * .9); let c = t > .35 ? col(v.cor2) : col(v.cor); if (y < Wd * .25) c = lerpC(c, '#e8dca0', .4); return c; };
-  const pts = [], rr = [];
-  const n = 18;
-  for (let i = 0; i <= n; i++){ const t = i / n, a = t * Math.PI * 3.2; const rad = L * .26 * (1 - t * .55); pts.push([Math.cos(a) * rad, Wd * .45 * (1 - t * .3), Math.sin(a) * rad]); rr.push(Wd * .48 * (1 - t * .7)); }
-  pts.reverse(); rr.reverse();
-  S.chain(pts, rr, skin, {k: 1});
-  const h = pts[pts.length - 1];
-  S.e([h[0] + v.cab * .6, h[1] + v.cab * .3, h[2]], [v.cab * 1.1, v.cab * .6, v.cab * .8], skin, {k: 1.2});
-  [-1, 1].forEach(s => S.e([h[0] + v.cab * .9, h[1] + v.cab * .65, h[2] + s * v.cab * .5], [.5, .5, .45], '#e8d84a', {k: .2, sharp: 8}));
+  const S = new SDF(), L = v.L, R = v.Wd * .36, cab = v.cab;
+  const belly = lerpC(v.cor, '#efe2b0', .55);
+  const skin = (x, y, z) => {
+    if (y < R * .55) return belly;                       // ventre claro
+    const [f1, f2] = voro(x / 2.4, y / 2.4, z / 2.4);   // manchas no dorso
+    if (f1 < .3) return col(v.cor2);
+    if (f2 - f1 < .07) return mulC(v.cor, .8);
+    return col(v.cor);
+  };
+  // trajeto: da ponta da cauda (x negativo) até o pescoço (x positivo), ondulando no chão
+  const N = 48, pts = [], radii = [];
+  const x0 = -L * .5, x1 = L * .42 - cab, amp = L * .1;
+  for (let i = 0; i <= N; i++){
+    const t = i / N;
+    const env = Math.sin(Math.min(1, t * 1.15) * Math.PI * .5);          // a cauda ondula menos
+    const z = Math.sin(t * Math.PI * 2.4 + .6) * amp * (.35 + .65 * env) * (1 - Math.pow(t, 6) * .8);
+    // raio: ponta fina, corpo grosso, leve afinamento no pescoço
+    const body = t < .35 ? .12 + .88 * Math.sin(t / .35 * Math.PI * .5) : t > .9 ? 1 - (t - .9) / .1 * .22 : 1;
+    const r = R * body;
+    pts.push([x0 + (x1 - x0) * t, r, z]); radii.push(r);
+  }
+  // inverte a ordem dos triângulos do tubo para as normais apontarem para fora (luz correta)
+  const tg = M3.tubeGeo(pts, radii, 18, true), ix = tg.index.array;
+  for (let i = 0; i < ix.length; i += 3){ const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; }
+  tg.computeVertexNormals();
+  S.extra.add(tg, {}, skin);
+  // cabeça (esculpida): achatada, um pouco mais larga que o pescoço
+  const h = pts[N], hx = h[0] + cab * .55, hy = R * .9, hz = h[2];
+  S.e([hx, hy, hz], [cab * 1.05, R * .82, Math.max(R * 1.05, cab * .62)], skin, {k: .8});
+  S.c([h[0] - cab * .2, R * .95, hz], [hx, hy, hz], R * .95, R * .9, skin, {k: .8});
+  S.e([hx + cab * .65, hy - R * .1, hz], [cab * .55, R * .55, Math.max(R * .75, cab * .45)], skin, {k: .7});
+  [-1, 1].forEach(s => S.e([hx + cab * .35, hy + R * .45, hz + s * Math.max(R * .85, cab * .5)], [.42, .42, .36], '#e8d84a', {k: .15, sharp: 8}));
+  [-1, 1].forEach(s => S.e([hx + cab * .42, hy + R * .5, hz + s * Math.max(R * .92, cab * .54)], [.18, .3, .14], '#111', {k: 0, sharp: 10}));
   return {sdf: S, limbs: [], legLen: 0};
 }
 function buildBird(v, sex, spId){

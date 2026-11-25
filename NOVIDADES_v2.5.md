@@ -13,3 +13,11 @@
 - **Painel lateral sem travar a rolagem:** o painel só é redesenhado quando o conteúdo muda e espera o dedo soltar.
 - **Lotes não comprados (2D):** só os visíveis são desenhados, de uma vez só. Antes eram cerca de 300 retângulos por quadro.
 - **Abertura mais rápida com internet lenta:** as fontes carregam sem bloquear a tela inicial.
+
+## 2.5.1: vários animais de uma vez e cobra nova no 3D
+- **Ações em grupo:** no painel do recinto, toque em **☑️ Selecionar vários**. Marque os animais um a um ou use os atalhos (Todos, Machos, Fêmeas, Filhotes, Idosos ou por espécie). Depois escolha:
+  - **🔀 Mover** para outro recinto. A compatibilidade e o espaço são conferidos animal por animal.
+  - **💲 Vender.** O valor total aparece antes de confirmar.
+  - **🌍 Conservação.** Os animais vão para programas de conservação e o zoológico ganha reputação.
+  - Errou? É só usar o Ctrl+Z (↶ Desfazer).
+- **Cobra no 3D:** o corpo agora é um cilindro liso de verdade, deitado no chão numa curva em "S", com ventre claro e manchas no dorso. Antes era uma rosca enrolada e cheia de "ondinhas". Vale para a sucuri e o basilisco.

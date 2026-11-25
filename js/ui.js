@@ -587,7 +587,7 @@ UI.openEnclosure = function(id){
     if (spList.length) h += `<div class="note">${st.drinker ? '🚰 Bebedouro: sim' : '🚰 Sem bebedouro'} · ${st.feeder ? '🍽️ Comedouro: sim (a comida dura mais e rende mais)' : '🍽️ Sem comedouro (coloque um: menos fome e menos ração)'}${spList.some(k => FP.World.needsLake(FP.SPECIES[k])) ? ' · 💧 Este recinto tem espécie que precisa de lago (piscinão)' : ''}</div>`;
     // animais
     if (s.as.length){
-      h += '<h4>Animais</h4><div class="alist">' + s.as.sort((a, b) => a.sp.localeCompare(b.sp) || b.age - a.age).map(animalRow).join('') + '</div>';
+      h += `<h4>Animais</h4><button class="btn sm primary bulk-open" data-act="bulkAnimals" data-arg="${e.id}">☑️ Selecionar vários (mover, vender ou conservação)</button><div class="alist">` + s.as.sort((a, b) => a.sp.localeCompare(b.sp) || b.age - a.age).map(animalRow).join('') + '</div>';
     }
     const c = FP.World.encOccupancy(G, e);
     let food = 0; c.animals.forEach(a => food += FP.SPECIES[a.sp].qtd * FP.FOODS[FP.SPECIES[a.sp].comida].preco * (FP.Animals.isBaby(a) ? .5 : 1));
@@ -602,6 +602,66 @@ function animalRow(a){
   const sp = FP.SPECIES[a.sp];
   return `<div class="arow" data-act="openAnimal" data-arg="${a.id}"><img src="${FP.Sprites.iconURL('animal', a.sp, 34)}"><div class="ainfo"><b>${esc(a.name)}</b> <span class="sex ${a.sex}">${a.sex === 'M' ? '♂' : '♀'}</span> <small>${sp.nome} · ${FP.Animals.stage(a)}${a.preg ? ' · 🤰' : ''}${a.sick && a.sick.known ? ' · 🤒' : ''}${a.quar ? ' · 🏥' : ''}</small>${U.bar(a.health)}</div><em style="color:${U.stateColor(a.happy)}">${Math.round(a.happy)}%</em></div>`;
 }
+
+/* ---------- v2.5.1: ações em grupo (vários animais de uma vez) ---------- */
+UI.bulkAnimals = function(encId){
+  const G = FP.G, e = G.enclosures[encId]; if (!e) return;
+  const list = FP.World.encAnimals(G, e).sort((a, b) => a.sp.localeCompare(b.sp) || b.age - a.age);
+  if (!list.length){ UI.toast('Este recinto não tem animais.', 'error'); return; }
+  const sel = new Set();
+  const sps = [...new Set(list.map(a => a.sp))];
+  const dests = Object.values(G.enclosures).filter(d => d.id !== e.id);
+  const draw = () => {
+    const chosen = list.filter(a => sel.has(a.id));
+    const value = chosen.reduce((s, a) => s + FP.Animals.sellValue(a), 0);
+    const box = $('#modal .modal-box');
+    box.innerHTML = `<h2>☑️ Animais de ${esc(e.name)}</h2>
+      <div class="bulk-quick">
+        <button class="btn xs" data-q="all">Todos</button><button class="btn xs" data-q="none">Nenhum</button>
+        <button class="btn xs" data-q="M">♂ Machos</button><button class="btn xs" data-q="F">♀ Fêmeas</button>
+        <button class="btn xs" data-q="baby">Filhotes</button><button class="btn xs" data-q="old">Idosos</button>
+        ${sps.length > 1 ? sps.map(sp => `<button class="btn xs" data-q="sp:${sp}">${esc(FP.SPECIES[sp].nome)}</button>`).join('') : ''}
+      </div>
+      <div class="bulk-list">${list.map(a => `<label class="bulk-row${sel.has(a.id) ? ' on' : ''}"><input type="checkbox" data-aid="${a.id}" ${sel.has(a.id) ? 'checked' : ''}><img src="${FP.Sprites.iconURL('animal', a.sp, 28)}" alt=""><span><b>${esc(a.name)}</b> <span class="sex ${a.sex}">${a.sex === 'M' ? '♂' : '♀'}</span><br><small>${FP.SPECIES[a.sp].nome} · ${FP.Animals.stage(a)}${a.preg ? ' · 🤰' : ''} · ${U.money(FP.Animals.sellValue(a))}</small></span></label>`).join('')}</div>
+      <p class="note"><b>${chosen.length}</b> de ${list.length} selecionado(s)${chosen.length ? ` · valor de venda: <b>${U.money(value)}</b>` : ''}</p>
+      <div class="bulk-move"><select id="bulk-dest">${dests.length ? dests.map(d => `<option value="${d.id}">${esc(d.name)} · ${FP.World.encAnimals(G, d).length} animais · ${d.tiles.length} tiles</option>`).join('') : '<option value="">— não há outro recinto —</option>'}</select>
+        <button class="btn sm" id="bulk-move" ${chosen.length && dests.length ? '' : 'disabled'}>🔀 Mover</button></div>
+      <div class="modal-actions">
+        <button class="btn ghost" data-close>Fechar</button>
+        <button class="btn" id="bulk-cons" ${chosen.length ? '' : 'disabled'}>🌍 Conservação</button>
+        <button class="btn primary" id="bulk-sell" ${chosen.length ? '' : 'disabled'}>💲 Vender (${U.money(value)})</button>
+      </div>`;
+    box.querySelectorAll('[data-close]').forEach(b => b.onclick = UI.closeModal);
+    box.querySelectorAll('[data-aid]').forEach(cb => cb.onchange = () => { const id = +cb.dataset.aid; cb.checked ? sel.add(id) : sel.delete(id); draw(); });
+    box.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+      const q = b.dataset.q;
+      const pick = q === 'all' ? () => true : q === 'none' ? () => false : q === 'M' || q === 'F' ? a => a.sex === q : q === 'baby' ? a => FP.Animals.isBaby(a) : q === 'old' ? a => FP.Animals.isElder(a) : a => a.sp === q.slice(3);
+      sel.clear(); list.forEach(a => { if (pick(a)) sel.add(a.id); }); draw();
+    });
+    const after = msg => { UI.closeModal(); UI.toast(msg, 'good'); UI.renderTop(); if (G.enclosures[e.id]) UI.openEnclosure(e.id); else UI.closePanels(); };
+    const mv = $('#bulk-move'); if (mv) mv.onclick = () => {
+      const d = G.enclosures[+$('#bulk-dest').value]; if (!d) return;
+      FP.Undo.commit(FP.Undo.snap('mover animais'));
+      let ok = 0; const fails = [];
+      chosen.forEach(a => { const r = FP.Market.move(a, d); if (r.ok) ok++; else fails.push(r.msg); });
+      d.dirty = true; e.dirty = true;
+      if (fails.length) UI.toast(`${fails.length} não puderam ser movidos: ${esc(fails[0])}`, 'error');
+      if (ok){ FP.Audio.play('build'); after(`🔀 ${ok} animal(is) movido(s) para ${esc(d.name)}.`); }
+    };
+    $('#bulk-sell').onclick = () => {
+      FP.Undo.commit(FP.Undo.snap('venda de animais'));
+      let v = 0; chosen.forEach(a => { const r = FP.Market.sell(a); if (r.ok) v += r.v; });
+      FP.Audio.play('cash'); after(`💲 ${chosen.length} animal(is) vendido(s) por ${U.money(v)}.`);
+    };
+    $('#bulk-cons').onclick = () => {
+      FP.Undo.commit(FP.Undo.snap('conservação'));
+      chosen.forEach(a => FP.Market.sell(a, true));
+      after(`🌍 ${chosen.length} animal(is) transferido(s) para programas de conservação. +reputação`);
+    };
+  };
+  UI.modal('');
+  draw();
+};
 
 /* ---------- Animal ---------- */
 UI.openAnimal = function(id){
@@ -912,6 +972,7 @@ const ACT = {
     UI.modal(`<h2>${a.quar ? 'Liberar ' + esc(a.name) + ' em' : 'Mover ' + esc(a.name)}</h2><div class="list">${opts.map(e => `<div class="row"><div><b>${esc(e.name)}</b><br><small>Habitat ${FP.World.habitat(G, e, a.sp)}% · ${FP.World.encAnimals(G, e).length} animais${FP.World.encAnimals(G, e).some(x => x.sp === a.sp) ? ' · grupo da mesma espécie' : ''}</small></div><button class="btn sm" data-mv="${e.id}">${a.quar ? 'Liberar aqui' : 'Mover'}</button></div>`).join('')}</div><div class="modal-actions"><button class="btn ghost" data-close>Cancelar</button></div>`);
     document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const r = FP.Market.move(a, G.enclosures[b.dataset.mv]); UI.closeModal(); UI.toast(r.ok ? 'Animal transferido.' : r.msg, r.ok ? 'good' : 'error'); if (r.ok) UI.openAnimal(a.id); });
   },
+  bulkAnimals: id => UI.bulkAnimals(+id),
   quarantine: id => { const a = FP.G.animals.find(x => x.id === +id); const r = FP.Health.sendQuarantine(a); UI.toast(r.ok ? 'Enviado à quarentena.' : r.msg, r.ok ? 'good' : 'error'); panelRender(); },
   release: id => {
     const a = FP.G.animals.find(x => x.id === +id); if (!a) return;
