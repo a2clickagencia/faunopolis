@@ -268,4 +268,35 @@ H.release = function(a, enc){
   a.quar = false; a.enc = enc.id; a.homeEnc = enc.id; FP.Animals.placeRandom(a, enc);
   return {ok:true, enc, moved: enc !== home, msg: enc !== home ? `${a.name} foi para ${enc.name}${home ? '' : ' (o recinto de origem não existe mais)'}.` : ''};
 };
+/* v2.5.2: quarentena em grupo — todos os doentes entram de uma vez e todos os saudáveis saem de uma vez. */
+H.sickOutside = () => FP.G.animals.filter(a => a.sick && a.sick.known && !a.quar);
+H.healthyInQuar = () => FP.G.animals.filter(a => a.quar && !a.sick);
+H.quarantineSick = function(){
+  const G = FP.G;
+  if (!H.clinics().length) return {ok:false, n:0, msg:'É necessário ter uma clínica veterinária conectada aos caminhos.'};
+  // os mais contagiosos e graves entram primeiro, caso não haja vaga para todos
+  const list = H.sickOutside().sort((x, y) => {
+    const dx = FP.DISEASES[x.sick.d], dy = FP.DISEASES[y.sick.d];
+    return (dy.contagio - dx.contagio) || (dy.sev - dx.sev) || (x.health - y.health);
+  });
+  let n = 0;
+  for (const a of list){
+    const e = G.enclosures[a.enc];
+    if (!H.sendQuarantine(a).ok) break;
+    if (e) e.dirty = true;
+    n++;
+  }
+  return {ok: n > 0, n, left: list.length - n, msg: n ? '' : 'Quarentena lotada (' + G.animals.filter(x => x.quar).length + '/' + H.quarSlots() + ' vagas).'};
+};
+H.releaseHealthy = function(){
+  const G = FP.G;
+  let n = 0; const moved = [], stuck = [];
+  H.healthyInQuar().forEach(a => {
+    const r = H.release(a);
+    if (!r.ok){ stuck.push(a); return; }
+    r.enc.dirty = true; n++;
+    if (r.moved) moved.push(a.name + ' → ' + r.enc.name);
+  });
+  return {ok: n > 0, n, moved, stuck};
+};
 })();

@@ -21,3 +21,11 @@
   - **🌍 Conservação.** Os animais vão para programas de conservação e o zoológico ganha reputação.
   - Errou? É só usar o Ctrl+Z (↶ Desfazer).
 - **Cobra no 3D:** o corpo agora é um cilindro liso de verdade, deitado no chão numa curva em "S", com ventre claro e manchas no dorso. Antes era uma rosca enrolada e cheia de "ondinhas". Vale para a sucuri e o basilisco.
+
+## 2.5.2: quarentena de uma vez só
+- **Dois botões novos no painel 🏥 Saúde:**
+  - **🏥 Pôr em quarentena os doentes:** todos os animais com doença identificada vão para a quarentena de uma vez. Se faltar vaga, os mais contagiosos e graves entram primeiro e o jogo avisa quantos ficaram de fora.
+  - **✅ Liberar animais saudáveis:** todos os animais já curados saem da quarentena juntos e voltam para os seus recintos de origem. Se o recinto não existir mais ou estiver cheio, vão para onde está o grupo da mesma espécie ou para outro recinto compatível. Quem ainda está doente continua lá.
+  - Os botões mostram quantos animais serão afetados e ficam apagados quando não há nada a fazer.
+- **Seleção em grupo no recinto:** em **☑️ Selecionar vários** também dá para mandar os animais marcados para a quarentena (botão **🏥 Quarentena**).
+- Tudo pode ser desfeito com Ctrl+Z (↶ Desfazer).

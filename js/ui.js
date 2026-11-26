@@ -628,6 +628,7 @@ UI.bulkAnimals = function(encId){
         <button class="btn sm" id="bulk-move" ${chosen.length && dests.length ? '' : 'disabled'}>🔀 Mover</button></div>
       <div class="modal-actions">
         <button class="btn ghost" data-close>Fechar</button>
+        ${FP.Health.enabled() ? `<button class="btn" id="bulk-quar" ${chosen.length ? '' : 'disabled'}>🏥 Quarentena</button>` : ''}
         <button class="btn" id="bulk-cons" ${chosen.length ? '' : 'disabled'}>🌍 Conservação</button>
         <button class="btn primary" id="bulk-sell" ${chosen.length ? '' : 'disabled'}>💲 Vender (${U.money(value)})</button>
       </div>`;
@@ -652,6 +653,17 @@ UI.bulkAnimals = function(encId){
       FP.Undo.commit(FP.Undo.snap('venda de animais'));
       let v = 0; chosen.forEach(a => { const r = FP.Market.sell(a); if (r.ok) v += r.v; });
       FP.Audio.play('cash'); after(`💲 ${chosen.length} animal(is) vendido(s) por ${U.money(v)}.`);
+    };
+    const qb = $('#bulk-quar'); if (qb) qb.onclick = () => {
+      const H = FP.Health;
+      if (!H.clinics().length){ UI.toast('É necessário ter uma clínica veterinária conectada aos caminhos.', 'error'); return; }
+      const free = H.quarSlots() - G.animals.filter(x => x.quar).length;
+      if (free <= 0){ UI.toast('Quarentena lotada (' + H.quarSlots() + '/' + H.quarSlots() + ' vagas).', 'error'); return; }
+      FP.Undo.commit(FP.Undo.snap('quarentena'));
+      let ok = 0; chosen.forEach(a => { if (H.sendQuarantine(a).ok) ok++; });
+      e.dirty = true;
+      if (ok < chosen.length) UI.toast(`${chosen.length - ok} ficaram de fora: quarentena lotada.`, 'error');
+      after(`🏥 ${ok} animal(is) enviado(s) à quarentena.`);
     };
     $('#bulk-cons').onclick = () => {
       FP.Undo.commit(FP.Undo.snap('conservação'));
@@ -814,6 +826,12 @@ function pHealth(){
   let h = `<table class="kv"><tr><td>Clínicas conectadas</td><td>${clinics}</td></tr><tr><td>Veterinários</td><td>${vets} (capacidade ${clinics ? Math.floor(vets * 3 * FP.Staff.efficiency()) : 0} pacientes)</td></tr><tr><td>Vagas de quarentena</td><td>${quar.length}/${FP.Health.quarSlots()}</td></tr></table>`;
   h += `<label class="opts"><input type="checkbox" data-act="quarBuy" ${G.quarantineOnBuy ? 'checked' : ''}> Enviar animais recém-adquiridos para quarentena</label>`;
   if (!clinics) h += '<div class="warnbox">🏥 Construa uma Clínica veterinária (Instalações operacionais) encostada em um caminho.</div>';
+  // v2.5.2: quarentena em grupo
+  const nSick = FP.Health.sickOutside().length, nHealthy = FP.Health.healthyInQuar().length;
+  h += `<div class="quar-bulk">
+    <button class="btn sm primary" data-act="quarSick" ${nSick && clinics ? '' : 'disabled'}>🏥 Pôr em quarentena os doentes${nSick ? ' (' + nSick + ')' : ''}</button>
+    <button class="btn sm" data-act="releaseHealthy" ${nHealthy ? '' : 'disabled'}>✅ Liberar animais saudáveis${nHealthy ? ' (' + nHealthy + ')' : ''}</button>
+  </div>`;
   h += healthList(G);
   if (quar.length) h += '<h4>Em quarentena</h4><div class="alist">' + quar.map(animalRow).join('') + '</div>';
   h += '<h4>Doenças conhecidas</h4><table class="kv">' + Object.values(FP.DISEASES).map(d => `<tr><td>${d.nome}</td><td><small>Gravidade ${d.sev} · contágio ${Math.round(d.contagio * 100)}% · ${d.dias} dias de tratamento · ${U.money(d.custo)}/dia</small></td></tr>`).join('') + '</table>';
@@ -979,6 +997,23 @@ const ACT = {
     const go = () => { const r = FP.Health.release(a); UI.toast(r.ok ? 'Liberado da quarentena.' + (r.msg ? ' ' + r.msg : '') : r.msg, r.ok ? 'good' : 'error'); if (panelRender) panelRender(); };
     if (a.sick){ UI.confirm('Liberar animal doente?', 'O animal ainda está doente e pode contaminar outros.', go); return; }
     go();
+  },
+  quarSick: () => {
+    if (!FP.Health.sickOutside().length){ UI.toast('Nenhum animal doente fora da quarentena.', 'info'); return; }
+    FP.Undo.commit(FP.Undo.snap('quarentena dos doentes'));
+    const r = FP.Health.quarantineSick();
+    if (r.n) UI.toast(`🏥 ${r.n} animal(is) doente(s) enviado(s) à quarentena.${r.left ? ` ${r.left} ficaram de fora: quarentena lotada (construa outra clínica).` : ''}`, r.left ? 'info' : 'good');
+    else UI.toast(r.msg, 'error');
+    UI.renderTop(); if (panelRender) panelRender();
+  },
+  releaseHealthy: () => {
+    if (!FP.Health.healthyInQuar().length){ UI.toast('Não há animais saudáveis na quarentena.', 'info'); return; }
+    FP.Undo.commit(FP.Undo.snap('liberação da quarentena'));
+    const r = FP.Health.releaseHealthy();
+    if (r.n) UI.toast(`✅ ${r.n} animal(is) saudável(is) devolvido(s) aos recintos.${r.moved.length ? ' Em outro recinto: ' + esc(r.moved.slice(0, 3).join(', ')) + (r.moved.length > 3 ? '…' : '') + '.' : ''}`, 'good');
+    if (r.stuck.length) UI.toast(`${r.stuck.length} continua(m) na quarentena por falta de espaço em recinto compatível (${esc(r.stuck.slice(0, 3).map(a => a.name).join(', '))}). Amplie um recinto ou use "Liberar em outro recinto".`, 'error');
+    if (r.n) FP.Audio.play('build');
+    UI.renderTop(); if (panelRender) panelRender();
   },
   locate: id => { const a = FP.G.animals.find(x => x.id === +id); if (a) FP.Render.centerOn(a.x, a.y); },
   demolishObj: id => { const G = FP.G, o = G.objects[id]; if (!o) return; const d = FP.World.objDef(o); FP.Undo.commit(FP.Undo.snap('remoção de ' + d.nome)); FP.Economy.earn(Math.round(d.custo * .4), 'reembolsos'); const ei = G.enc[U.idx(o.x, o.y)]; if (ei >= 0) G.enclosures[ei].dirty = true; FP.World.removeObject(G, +id); FP.World.refreshNetwork(G); FP.Audio.play('demolish'); UI.closePanels(); },
